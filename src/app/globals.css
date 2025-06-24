@@ -2,79 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --background: 240 100% 99%;
+    --foreground: 240 6% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 240 6% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 240 6% 10%;
+    --primary: 197 71% 60%; /* Adjusted for better contrast from #87CEEB */
+    --primary-foreground: 240 6% 10%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 67% 94%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 197 71% 60%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
   .dark {
-    --background: 0 0% 3.9%;
+    --background: 240 6% 10%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
+    --card: 240 6% 10%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
+    --popover: 240 6% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
+    --primary: 197 71% 73%;
+    --primary-foreground: 240 6% 10%;
+    --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 67% 84%; /* Darker lavender */
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 197 71% 73%;
   }
 }
 
@@ -85,4 +55,150 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@layer components {
+  /* Main Layout & App Structure */
+  .app-container { @apply flex min-h-screen flex-col bg-background; }
+  .main-app-content { @apply flex flex-1; }
+  .main-content { @apply flex-1 flex flex-col transition-all duration-300 ease-in-out; }
+  .sidebar-open .main-content { @apply md:ml-64; }
+  .sidebar-closed .main-content { @apply md:ml-20; }
+  .page-content-area { @apply flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto; }
+
+  /* Header */
+  .main-header { @apply flex items-center justify-between bg-card shadow-sm px-4 py-3 border-b; }
+  .page-title { @apply text-xl md:text-2xl font-bold text-foreground; }
+  .mobile-menu-button { @apply md:hidden text-muted-foreground hover:text-foreground; }
+  .header-user-controls { @apply flex items-center gap-4; }
+  .user-email { @apply text-sm text-muted-foreground hidden sm:block; }
+  .user-email span { @apply font-semibold text-foreground; }
+
+  /* Sidebar */
+  .sidebar { @apply fixed top-0 left-0 h-full bg-card border-r w-64 transform -translate-x-full md:translate-x-0 z-40 transition-transform duration-300 ease-in-out flex flex-col; }
+  .sidebar-open .sidebar { @apply translate-x-0 shadow-lg; }
+  .sidebar-closed .sidebar { @apply w-20; }
+  .sidebar-header { @apply flex items-center justify-between p-4 border-b h-[61px]; }
+  .sidebar-title { @apply text-lg font-bold text-primary; }
+  .sidebar-toggle-button { @apply text-muted-foreground hover:text-foreground; }
+  .sidebar-closed .sidebar-title { @apply hidden; }
+  .sidebar-nav { @apply flex-1 overflow-y-auto overflow-x-hidden py-4; }
+  .sidebar-nav-item { @apply flex items-center gap-3 px-4 py-2.5 text-muted-foreground rounded-lg mx-2 transition-colors duration-200; }
+  .sidebar-nav-item:hover { @apply bg-accent text-accent-foreground; }
+  .sidebar-nav-item.active { @apply bg-primary text-primary-foreground font-semibold; }
+  .sidebar-nav-label { @apply whitespace-nowrap; }
+  .sidebar-closed .sidebar-nav-label { @apply hidden; }
+  .sidebar-closed .sidebar-nav-item { @apply justify-center; }
+  .sidebar-footer { @apply p-4 mt-auto border-t; }
+  .sidebar-closed .sidebar-footer-icon-button { @apply w-full; }
+
+  /* Footer */
+  .app-footer { @apply text-center p-4 text-sm text-muted-foreground border-t bg-card; }
+
+  /* Buttons */
+  .btn { @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2; }
+  .btn-primary { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
+  .btn-secondary { @apply bg-secondary text-secondary-foreground hover:bg-secondary/80; }
+  .btn-danger { @apply bg-destructive text-destructive-foreground hover:bg-destructive/90; }
+  .btn-small { @apply h-9 px-3; }
+  .btn-icon { @apply h-8 w-8 p-0; }
+  .btn-full-width { @apply w-full; }
+  .btn-back { @apply mb-4; }
+  
+  /* Forms */
+  .form-page-card { @apply max-w-4xl mx-auto; }
+  .form-layout { @apply grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4; }
+  .form-layout > .form-section-title, .form-layout > .input-group, .form-layout > .form-actions { @apply md:col-span-2; }
+  .input-group { @apply space-y-2; }
+  .input-label { @apply text-sm font-medium leading-none; }
+  .required-asterisk { @apply text-destructive ml-1; }
+  .input-wrapper { @apply relative; }
+  .input-icon { @apply absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground; }
+  .input-field, .textarea-field, .select-field { @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50; }
+  .input-field-with-icon { @apply pl-10; }
+  .textarea-field { @apply min-h-[80px]; }
+  .input-group-checkbox { @apply flex items-center gap-2; }
+  .form-actions { @apply flex justify-end gap-3 pt-6 border-t mt-4; }
+  .form-section-title { @apply text-lg font-semibold border-b pb-2 mb-2 mt-4; }
+  .search-results-list { @apply border rounded-md mt-1 max-h-40 overflow-y-auto; }
+  .search-result-item { @apply p-2 hover:bg-accent cursor-pointer; }
+
+  /* Cards & General Page Styles */
+  .page-card { @apply bg-card p-4 sm:p-6 rounded-xl shadow-sm border; }
+  .page-card-header { @apply flex items-center justify-between mb-6 pb-4 border-b; }
+  .page-card-title { @apply text-xl font-bold; }
+  .loading-screen, .loading-data-message { @apply flex flex-col items-center justify-center h-full p-8 text-lg text-muted-foreground; }
+  .loading-screen span, .loading-data-message span { @apply mt-4; }
+
+  /* Dashboard */
+  .stats-grid, .quick-actions-grid { @apply grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4; }
+  .page-card-item { @apply bg-background border rounded-lg p-4 transition-all hover:shadow-md hover:-translate-y-1; }
+  .stat-card-item { @apply flex flex-col items-center justify-center text-center; }
+  .stat-icon { @apply mb-2; }
+  .stat-value { @apply text-3xl font-bold; }
+  .stat-label { @apply text-sm text-muted-foreground mt-1; }
+  .quick-action-item { @apply flex flex-col justify-between text-left; }
+  .quick-action-header { @apply flex items-center gap-3 mb-2; }
+  .quick-action-label { @apply font-semibold text-foreground; }
+  .quick-action-count { @apply text-2xl font-bold text-primary; }
+  .quick-action-subtext { @apply text-xs font-normal text-muted-foreground; }
+
+  /* Tables */
+  .table-container { @apply w-full overflow-x-auto; }
+  .data-table { @apply w-full text-sm text-left; }
+  .data-table thead { @apply bg-muted; }
+  .th-cell, .td-cell { @apply p-3 align-middle; }
+  .th-cell { @apply font-medium text-muted-foreground; }
+  .table-row { @apply border-b transition-colors hover:bg-muted/50; }
+  .td-actions { @apply flex items-center gap-1.5; }
+  .table-action-button.edit { @apply text-blue-500 hover:text-blue-700; }
+  .table-action-button.delete { @apply text-red-500 hover:text-red-700; }
+
+  /* Modals */
+  .modal-overlay { @apply fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4; }
+  .modal-content { @apply bg-card rounded-lg shadow-xl w-full flex flex-col max-h-[90vh]; }
+  .modal-size-medium { @apply max-w-2xl; }
+  .modal-size-large { @apply max-w-4xl; }
+  .modal-header { @apply flex items-center justify-between p-4 border-b; }
+  .modal-title { @apply text-lg font-semibold; }
+  .modal-close-button { @apply text-muted-foreground hover:text-foreground; }
+  .modal-body { @apply p-6 overflow-y-auto; }
+
+  /* Status Badges */
+  .status-badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
+  .status-badge-green { @apply bg-green-100 text-green-800; }
+  .status-badge-red { @apply bg-red-100 text-red-800; }
+  .status-badge-blue { @apply bg-blue-100 text-blue-800; }
+  .status-badge-orange { @apply bg-orange-100 text-orange-800; }
+  .status-badge-unpaid, .status-badge-pending, .status-badge-open { @apply bg-yellow-100 text-yellow-800; }
+  .status-badge-paid, .status-badge-resolved, .status-badge-published, .status-badge-enrolled { @apply status-badge-green; }
+  .status-badge-overdue { @apply status-badge-red; }
+
+  /* Spin Animation */
+  .animate-spin-css { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  
+  /* Responsive table columns */
+  @media (max-width: 1024px) { .th-lg-hidden, .td-lg-hidden { display: none; } }
+  @media (max-width: 768px) { .th-md-hidden, .td-md-hidden { display: none; } }
+  @media (max-width: 640px) { .th-sm-hidden, .td-sm-hidden { display: none; } }
+
+  /* Report Details */
+  .report-details-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4; }
+  .report-section { @apply space-y-1; }
+  .report-section h4 { @apply font-semibold text-foreground mb-2 border-b pb-1; }
+  .report-photo-preview { @apply rounded-lg border max-w-xs w-full object-cover; }
+
+  /* Invoice Details */
+  .invoice-details-container { @apply p-2; }
+  .invoice-header-section { @apply flex justify-between flex-wrap gap-4 mb-6; }
+  .invoice-section-title { @apply text-base font-semibold text-muted-foreground uppercase tracking-wider mb-2; }
+
+  /* Gallery */
+  .gallery-grid { @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4; }
+  .gallery-item-card { @apply border rounded-lg overflow-hidden bg-background; }
+  .gallery-item-image { @apply w-full h-48 object-cover; }
+  .gallery-item-info { @apply p-3; }
+  .gallery-item-caption { @apply font-semibold; }
+  .gallery-item-meta { @apply text-xs text-muted-foreground mt-1; }
 }
