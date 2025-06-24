@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, createContext, useCallback, useContext } from 'react';
@@ -197,7 +198,7 @@ const App = () => {
         });
 
         return () => { subscription?.unsubscribe(); };
-    }, [currentPage]);
+    }, []);
 
     // Generic fetchData function
     const fetchData = useCallback(async (dataType: string, setDataCallback: Function, tableName: string, order = { column: 'created_at', ascending: false }, select = '*') => {
