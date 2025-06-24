@@ -60,13 +60,27 @@ export const ViewDailyReportModal: React.FC<ViewDailyReportModalProps> = ({ repo
                 <div className="report-section"><h4>Naps</h4> {(report.naps && report.naps.length > 0 && report.naps[0].start) ? report.naps?.map((nap, i) => <p key={i}><strong>Nap {i + 1}:</strong> {formatTime(nap.start)} - {formatTime(nap.end)}</p>) : <p>No naps recorded.</p>}</div>
                 <div className="report-section"><h4>Activities & Care</h4> <p><strong>Activities:</strong> {report.activities || 'N/A'}</p> <p><strong>Toileting/Diapers:</strong> {report.toileting_diapers || 'N/A'}</p></div>
                 <div className="report-section"><h4>Notes & Supplies</h4> <p><strong>Supplies Needed:</strong> {report.supplies_needed || 'N/A'}</p> <p><strong>Notes for Parents:</strong> {report.notes_for_parents || 'N/A'}</p></div>
+                
                 {(report.photo_url_1 || report.photo_url_2) && (
-                    <div className="report-section md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="report-section md:col-span-2">
                         <h4>Photos</h4>
-                        {report.photo_url_1 && <div className="report-photo-item"><p><strong>Photo 1:</strong></p><img src={report.photo_url_1} alt="Report photo 1" className="report-photo-preview" /></div>}
-                        {report.photo_url_2 && <div className="report-photo-item"><p><strong>Photo 2:</strong></p><img src={report.photo_url_2} alt="Report photo 2" className="report-photo-preview" /></div>}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {report.photo_url_1 && <div className="report-photo-item"><img src={report.photo_url_1} alt="Report photo 1" className="report-photo-preview" /></div>}
+                            {report.photo_url_2 && <div className="report-photo-item"><img src={report.photo_url_2} alt="Report photo 2" className="report-photo-preview" /></div>}
+                        </div>
                     </div>
                 )}
+
+                {(report.video_url_1 || report.video_url_2) && (
+                    <div className="report-section md:col-span-2">
+                        <h4>Videos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {report.video_url_1 && <div className="report-video-item"><video src={report.video_url_1} controls className="w-full rounded-lg border" /></div>}
+                            {report.video_url_2 && <div className="report-video-item"><video src={report.video_url_2} controls className="w-full rounded-lg border" /></div>}
+                        </div>
+                    </div>
+                )}
+                
                  <div className="report-section md:col-span-2">
                     <h4>AI-Powered Summary</h4>
                     <Button onClick={handleGenerateSummary} disabled={isGenerating}>

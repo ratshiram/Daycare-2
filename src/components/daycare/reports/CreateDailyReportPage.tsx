@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InputField } from '../ui/InputField';
 import { TextAreaField } from '../ui/TextAreaField';
 import { SelectField } from '../ui/SelectField';
@@ -6,28 +6,46 @@ import { FormActions } from '../ui/FormActions';
 import { Icons } from '@/components/Icons';
 import type { Child, Staff, DailyReport } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
-import { uploadReportPhoto } from '@/lib/storage';
+import { uploadReportPhoto, uploadReportVideo } from '@/lib/storage';
 
-interface CreateDailyReportPageProps {
+interface CreateOrEditDailyReportPageProps {
     children: Child[];
     staff: Staff[];
     onAddDailyReport: (reportData: Omit<DailyReport, 'id' | 'created_at'>) => void;
+    onUpdateDailyReport: (reportData: DailyReport) => void;
     onCancel: () => void;
     currentUser: any;
+    initialData: DailyReport | null;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
-export const CreateDailyReportPage: React.FC<CreateDailyReportPageProps> = ({ children, staff, onAddDailyReport, onCancel, currentUser, showAlert }) => {
-    const [formData, setFormData] = useState<Omit<DailyReport, 'id' | 'created_at' | 'staff_id'>>({
-        child_id: '', report_date: formatDateForInput(new Date()), mood: 'Happy',
+export const CreateDailyReportPage: React.FC<CreateOrEditDailyReportPageProps> = ({
+    children, onAddDailyReport, onUpdateDailyReport, onCancel, currentUser, initialData, showAlert
+}) => {
+    const isEditing = !!initialData;
+
+    const [formData, setFormData] = useState<Omit<DailyReport, 'id' | 'created_at'>>({
+        child_id: '', report_date: formatDateForInput(new Date()), mood: 'Happy', staff_id: '',
         meals: { breakfast: '', lunch: '', snack_am: '', snack_pm: '' },
-        naps: [{ start: '', end: '' }],
-        activities: '', toileting_diapers: '', supplies_needed: '', notes_for_parents: '',
-        photo_url_1: null, photo_url_2: null,
+        naps: [{ start: '', end: '' }], activities: '', toileting_diapers: '',
+        supplies_needed: '', notes_for_parents: '', photo_url_1: null, photo_url_2: null, video_url_1: null, video_url_2: null
     });
+
     const [photo1File, setPhoto1File] = useState<File | null>(null);
     const [photo2File, setPhoto2File] = useState<File | null>(null);
+    const [video1File, setVideo1File] = useState<File | null>(null);
+    const [video2File, setVideo2File] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+
+    useEffect(() => {
+        if (isEditing && initialData) {
+            setFormData({
+                ...initialData,
+                report_date: formatDateForInput(initialData.report_date),
+                naps: initialData.naps && initialData.naps.length > 0 ? initialData.naps : [{ start: '', end: '' }],
+            });
+        }
+    }, [isEditing, initialData]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -47,11 +65,13 @@ export const CreateDailyReportPage: React.FC<CreateDailyReportPageProps> = ({ ch
 
     const addNapField = () => setFormData(prev => ({ ...prev, naps: [...(prev.naps || []), { start: '', end: '' }] }));
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, photoNumber: 1 | 2) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'photo1' | 'photo2' | 'video1' | 'video2') => {
         const file = e.target.files?.[0];
         if (file) {
-            if (photoNumber === 1) setPhoto1File(file);
-            if (photoNumber === 2) setPhoto2File(file);
+            if (fileType === 'photo1') setPhoto1File(file);
+            else if (fileType === 'photo2') setPhoto2File(file);
+            else if (fileType === 'video1') setVideo1File(file);
+            else if (fileType === 'video2') setVideo2File(file);
         }
     };
 
@@ -61,30 +81,40 @@ export const CreateDailyReportPage: React.FC<CreateDailyReportPageProps> = ({ ch
         if (!formData.child_id || !formData.report_date) {
             showAlert("Child and Report Date are required.", "error"); setIsUploading(false); return;
         }
-        if (!currentUser?.id) {
-            showAlert("Current user not found.", "error"); setIsUploading(false); return;
-        }
 
-        let photoUrl1 = null;
-        let photoUrl2 = null;
         try {
-            if (photo1File) { photoUrl1 = await uploadReportPhoto(photo1File, formData.child_id, 1); if (!photoUrl1) throw new Error("Photo 1 upload failed."); }
-            if (photo2File) { photoUrl2 = await uploadReportPhoto(photo2File, formData.child_id, 2); if (!photoUrl2) throw new Error("Photo 2 upload failed."); }
-        } catch (uploadError: any) {
-            showAlert(`Photo upload failed: ${uploadError.message}`, 'error'); setIsUploading(false); return;
-        }
+            let photoUrl1 = formData.photo_url_1;
+            if (photo1File) photoUrl1 = await uploadReportPhoto(photo1File, formData.child_id, 1);
+            
+            let photoUrl2 = formData.photo_url_2;
+            if (photo2File) photoUrl2 = await uploadReportPhoto(photo2File, formData.child_id, 2);
+            
+            let videoUrl1 = formData.video_url_1;
+            if (video1File) videoUrl1 = await uploadReportVideo(video1File, formData.child_id, 1);
 
-        const reportData: any = { ...formData, photo_url_1: photoUrl1, photo_url_2: photoUrl2 };
-        await onAddDailyReport(reportData);
-        setIsUploading(false);
+            let videoUrl2 = formData.video_url_2;
+            if (video2File) videoUrl2 = await uploadReportVideo(video2File, formData.child_id, 2);
+
+            const reportData = { ...formData, photo_url_1: photoUrl1, photo_url_2: photoUrl2, video_url_1: videoUrl1, video_url_2: videoUrl2 };
+            
+            if (isEditing && initialData) {
+                onUpdateDailyReport({ ...reportData, id: initialData.id, created_at: initialData.created_at });
+            } else {
+                onAddDailyReport(reportData);
+            }
+        } catch (uploadError: any) {
+            showAlert(`Media upload failed: ${uploadError.message}`, 'error');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
         <div className="page-card form-page-card">
             <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Reports</button>
-            <h2 className="page-card-title form-page-title mt-4">Create Daily Report</h2>
+            <h2 className="page-card-title form-page-title mt-4">{isEditing ? 'Edit Daily Report' : 'Create Daily Report'}</h2>
             <form onSubmit={handleSubmit} className="form-layout">
-                <SelectField label="Child" id="child_id" name="child_id" value={formData.child_id} onChange={handleChange} required icon={Icons.Smile}>
+                <SelectField label="Child" id="child_id" name="child_id" value={formData.child_id} onChange={handleChange} required icon={Icons.Smile} disabled={isEditing}>
                     <option value="">Select Child</option>
                     {Array.isArray(children) && children.map(child => <option key={child.id} value={child.id}>{child.name}</option>)}
                 </SelectField>
@@ -100,8 +130,8 @@ export const CreateDailyReportPage: React.FC<CreateDailyReportPageProps> = ({ ch
                 <h3 className="form-section-title">Naps</h3>
                 {formData.naps?.map((nap, index) => (
                     <div key={index} className="form-row grid grid-cols-2 gap-4 col-span-2">
-                        <InputField label={`Nap ${index + 1} Start`} type="time" value={nap.start} onChange={(e) => handleNapChange(e, index, 'start')} />
-                        <InputField label={`Nap ${index + 1} End`} type="time" value={nap.end} onChange={(e) => handleNapChange(e, index, 'end')} />
+                        <InputField label={`Nap ${index + 1} Start`} type="time" value={nap.start || ''} onChange={(e) => handleNapChange(e, index, 'start')} />
+                        <InputField label={`Nap ${index + 1} End`} type="time" value={nap.end || ''} onChange={(e) => handleNapChange(e, index, 'end')} />
                     </div>
                 ))}
                 <button type="button" onClick={addNapField} className="btn btn-secondary btn-small col-span-2 justify-self-start">Add Another Nap</button>
@@ -111,13 +141,17 @@ export const CreateDailyReportPage: React.FC<CreateDailyReportPageProps> = ({ ch
                 <TextAreaField label="Supplies Needed" id="supplies_needed" name="supplies_needed" value={formData.supplies_needed || ''} onChange={handleChange} />
                 <TextAreaField label="Notes for Parents" id="notes_for_parents" name="notes_for_parents" value={formData.notes_for_parents || ''} onChange={handleChange} />
 
-                <h3 className="form-section-title">Photos (Optional)</h3>
-                <InputField label="Photo 1" id="photo1File" name="photo1File" type="file" onChange={(e) => handleFileChange(e, 1)} icon={Icons.UploadCloud} accept="image/*" />
-                {photo1File && <p className="file-name-display text-sm text-muted-foreground">{photo1File.name}</p>}
-                <InputField label="Photo 2" id="photo2File" name="photo2File" type="file" onChange={(e) => handleFileChange(e, 2)} icon={Icons.UploadCloud} accept="image/*" />
-                {photo2File && <p className="file-name-display text-sm text-muted-foreground">{photo2File.name}</p>}
+                <h3 className="form-section-title">Media (Optional)</h3>
+                <InputField label="Photo 1" type="file" onChange={(e) => handleFileChange(e, 'photo1')} icon={Icons.UploadCloud} accept="image/*" />
+                {formData.photo_url_1 && !photo1File && <p className="text-sm text-muted-foreground">Current: {formData.photo_url_1.split('/').pop()}</p>}
+                <InputField label="Photo 2" type="file" onChange={(e) => handleFileChange(e, 'photo2')} icon={Icons.UploadCloud} accept="image/*" />
+                {formData.photo_url_2 && !photo2File && <p className="text-sm text-muted-foreground">Current: {formData.photo_url_2.split('/').pop()}</p>}
+                <InputField label="Video 1" type="file" onChange={(e) => handleFileChange(e, 'video1')} icon={Icons.UploadCloud} accept="video/*" />
+                {formData.video_url_1 && !video1File && <p className="text-sm text-muted-foreground">Current: {formData.video_url_1.split('/').pop()}</p>}
+                <InputField label="Video 2" type="file" onChange={(e) => handleFileChange(e, 'video2')} icon={Icons.UploadCloud} accept="video/*" />
+                {formData.video_url_2 && !video2File && <p className="text-sm text-muted-foreground">Current: {formData.video_url_2.split('/').pop()}</p>}
                 
-                <FormActions onCancel={onCancel} submitText="Add Report" submitIcon={Icons.PlusCircle} loading={isUploading} />
+                <FormActions onCancel={onCancel} submitText={isEditing ? 'Save Changes' : 'Add Report'} submitIcon={isEditing ? Icons.CheckCircle : Icons.PlusCircle} loading={isUploading} />
             </form>
         </div>
     );

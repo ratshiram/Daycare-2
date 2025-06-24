@@ -12,9 +12,10 @@ interface AdminDailyReportsPageProps {
     staff: Staff[];
     onNavigateToCreateReport: (() => void) | null;
     onViewReportDetails: (report: DailyReport) => void;
+    onEditReport: ((report: DailyReport) => void) | null;
 }
 
-export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onNavigateToCreateReport, onViewReportDetails }) => {
+export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onNavigateToCreateReport, onViewReportDetails, onEditReport }) => {
     if (loading && (!Array.isArray(dailyReports) || dailyReports.length === 0)) return <Loading />;
 
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
@@ -62,6 +63,11 @@ export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ da
                                         <button onClick={() => onViewReportDetails(report)} className="btn-icon table-action-button" title="View Details">
                                             <Icons.Eye size={16} />
                                         </button>
+                                        {onEditReport && (
+                                            <button onClick={() => onEditReport(report)} className="btn-icon table-action-button edit" title="Edit Report">
+                                                <Icons.Edit3 size={16} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

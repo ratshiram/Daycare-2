@@ -72,6 +72,8 @@ export interface DailyReport extends Base {
     notes_for_parents?: string | null;
     photo_url_1?: string | null;
     photo_url_2?: string | null;
+    video_url_1?: string | null;
+    video_url_2?: string | null;
 }
 
 export interface IncidentReport extends Base {

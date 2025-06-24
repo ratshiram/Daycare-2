@@ -37,13 +37,27 @@ export const uploadFileToSupabase = async (file: File, bucketName: string, pathP
 export const uploadReportPhoto = async (file: File, childId: string, photoNumber: number) => {
     if (!file) return null;
     const BUCKET_NAME = 'galleryfiles';
-    const pathPrefix = `daily-reports/${childId}/report_${photoNumber}`;
+    const pathPrefix = `daily-reports/${childId}/report_photo_${photoNumber}`;
 
     try {
         const uploadResult = await uploadFileToSupabase(file, BUCKET_NAME, pathPrefix);
         return uploadResult?.publicUrl || null;
     } catch (error: any) {
         console.error('Report photo upload process failed:', error.message, error);
-        return null;
+        throw error;
+    }
+};
+
+export const uploadReportVideo = async (file: File, childId: string, videoNumber: number) => {
+    if (!file) return null;
+    const BUCKET_NAME = 'galleryfiles';
+    const pathPrefix = `daily-reports/${childId}/report_video_${videoNumber}`;
+
+    try {
+        const uploadResult = await uploadFileToSupabase(file, BUCKET_NAME, pathPrefix);
+        return uploadResult?.publicUrl || null;
+    } catch (error: any) {
+        console.error('Report video upload process failed:', error.message, error);
+        throw error;
     }
 };
