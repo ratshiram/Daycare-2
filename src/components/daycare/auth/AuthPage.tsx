@@ -37,7 +37,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSignUp, onSignIn, loading 
                         data-ai-hint="evergreen tree logo"
                         alt="Evergreen Tots App Logo"
                         className="auth-logo-image inline-block"
-                        style={{ height: '50px' }}
+                        style={{ height: '100px' }}
                     />
                 </div>
                 <div className="text-center mb-6">
