@@ -8,9 +8,11 @@ import { FormActions } from '../ui/FormActions';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
 import type { Child, Parent, Room } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { X } from 'lucide-react';
 
 interface AddChildModalProps {
-    onAddChild: (childData: Omit<Child, 'id' | 'created_at'>) => void;
+    onAddChild: (childData: Omit<Child, 'id' | 'created_at' | 'child_parents'>, parentsToLink: {parent_id: string, is_primary: boolean}[]) => void;
     onClose: () => void;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
     parentsList: Parent[];
@@ -18,13 +20,15 @@ interface AddChildModalProps {
 }
 
 export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClose, showAlert, parentsList, rooms }) => {
-    const [formData, setFormData] = useState<Omit<Child, 'id' | 'created_at'>>({
-        name: '', age: null, primary_parent_id: '', current_room_id: '', emergency_contact: '',
+    const [formData, setFormData] = useState<Omit<Child, 'id' | 'created_at' | 'child_parents'>>({
+        name: '', age: null, current_room_id: '', emergency_contact: '',
         allergies: '', notes: '', medical_info: {}, authorized_pickups: [], billing: {}
     });
+    
     const [parentSearchTerm, setParentSearchTerm] = useState('');
     const [filteredParents, setFilteredParents] = useState<Parent[]>([]);
-    const [selectedParentName, setSelectedParentName] = useState('');
+    const [selectedParents, setSelectedParents] = useState<Parent[]>([]);
+    const [primaryParentId, setPrimaryParentId] = useState<string | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
@@ -42,32 +46,51 @@ export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClos
         setParentSearchTerm(term);
         if (term.length > 1) {
             setFilteredParents((Array.isArray(parentsList) ? parentsList : []).filter(p =>
-                `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase().includes(term.toLowerCase()) ||
-                (p.email || '').toLowerCase().includes(term.toLowerCase())
+                !selectedParents.some(sp => sp.id === p.id) &&
+                (`${p.first_name || ''} ${p.last_name || ''}`.toLowerCase().includes(term.toLowerCase()) ||
+                (p.email || '').toLowerCase().includes(term.toLowerCase()))
             ).slice(0, 5));
         } else {
             setFilteredParents([]);
         }
-        if (term === '') {
-            setFormData(prev => ({ ...prev, primary_parent_id: '' }));
-            setSelectedParentName('');
-        }
     };
 
     const handleSelectParent = (parent: Parent) => {
-        setFormData(prev => ({ ...prev, primary_parent_id: parent.id }));
-        setSelectedParentName(`${parent.first_name} ${parent.last_name} (${parent.email})`);
-        setParentSearchTerm(`${parent.first_name} ${parent.last_name}`);
+        const newSelected = [...selectedParents, parent];
+        setSelectedParents(newSelected);
+        if (newSelected.length === 1) {
+            setPrimaryParentId(parent.id);
+        }
+        setParentSearchTerm('');
         setFilteredParents([]);
+    };
+    
+    const removeParent = (parentId: string) => {
+        setSelectedParents(selectedParents.filter(p => p.id !== parentId));
+        if (primaryParentId === parentId) {
+            const nextPrimary = selectedParents.find(p => p.id !== parentId);
+            setPrimaryParentId(nextPrimary ? nextPrimary.id : null);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || formData.age === null || !formData.primary_parent_id) {
-            showAlert("Child's Name, Age, and Primary Parent are required.", "error");
-            return;
+        if (!formData.name || formData.age === null) {
+            showAlert("Child's Name and Age are required.", "error"); return;
         }
-        onAddChild(formData);
+        if (selectedParents.length === 0) {
+            showAlert("At least one parent must be linked.", "error"); return;
+        }
+        if (!primaryParentId) {
+            showAlert("One parent must be set as the primary contact.", "error"); return;
+        }
+        
+        const parentsToLink = selectedParents.map(p => ({
+            parent_id: p.id,
+            is_primary: p.id === primaryParentId
+        }));
+        
+        onAddChild(formData, parentsToLink);
     };
 
     return (
@@ -81,17 +104,33 @@ export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClos
                     {Array.isArray(rooms) && rooms.map(room => (<option key={room.id} value={room.id}>{room.name}</option>))}
                 </SelectField>
 
-                <h3 className="form-section-title">Primary Parent/Guardian</h3>
+                <h3 className="form-section-title">Parents/Guardians</h3>
                 <div className="input-group">
-                    <InputField label="Search for Parent (Name or Email)" id="parentSearch" name="parentSearch" value={parentSearchTerm} onChange={handleParentSearchChange} icon={Icons.Search} placeholder="Type to search..." />
+                    <InputField label="Search & Add Parent (Name or Email)" id="parentSearch" name="parentSearch" value={parentSearchTerm} onChange={handleParentSearchChange} icon={Icons.Search} placeholder="Type to search..." />
                     {filteredParents.length > 0 && (
                         <ul className="search-results-list">{filteredParents.map(parent => (
                             <li key={parent.id} onClick={() => handleSelectParent(parent)} className="search-result-item">{`${parent.first_name} ${parent.last_name}`} ({parent.email})</li>
                         ))}</ul>
                     )}
-                    {formData.primary_parent_id && selectedParentName && (<InfoMessage type="success" message={`Selected Parent: ${selectedParentName}`} icon={Icons.UserCheck} />)}
-                    {!formData.primary_parent_id && parentSearchTerm.length > 1 && filteredParents.length === 0 && (<InfoMessage type="warning" message="No parent found. Add parent via 'Manage Parents' tab first." />)}
                 </div>
+                <div className="md:col-span-2 space-y-2">
+                    <label className="input-label">Linked Parents</label>
+                    {selectedParents.length > 0 ? (
+                        <div className="space-y-2 p-2 border rounded-md">
+                            {selectedParents.map(parent => (
+                                <div key={parent.id} className="flex items-center gap-3 p-2 bg-secondary rounded">
+                                    <input type="radio" id={`primary_${parent.id}`} name="primary_parent" value={parent.id} checked={primaryParentId === parent.id} onChange={() => setPrimaryParentId(parent.id)} className="h-4 w-4" />
+                                    <label htmlFor={`primary_${parent.id}`} className="flex-1 font-medium">{`${parent.first_name} ${parent.last_name}`}</label>
+                                    <Badge variant={primaryParentId === parent.id ? "default" : "secondary"}>{primaryParentId === parent.id ? 'Primary' : 'Set as Primary'}</Badge>
+                                    <button type="button" onClick={() => removeParent(parent.id)} className="p-1 text-muted-foreground hover:text-destructive"><X size={16} /></button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                         <InfoMessage type="info" message="No parents linked. Use the search box above to find and add parents." />
+                    )}
+                </div>
+
 
                 <h3 className="form-section-title">Additional Child Information</h3>
                 <InputField label="Emergency Contact (Name & Phone)" id="emergency_contact" name="emergency_contact" value={formData.emergency_contact || ''} onChange={handleChange} />

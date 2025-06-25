@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
@@ -7,11 +8,13 @@ import { FormActions } from '../ui/FormActions';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
 import type { Child, Parent, Room } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { X } from 'lucide-react';
 
 interface EditChildModalProps {
     child: Child | null;
     onClose: () => void;
-    onUpdateChild: (updatedChildData: Child) => void;
+    onUpdateChild: (updatedChildData: Child, parentsToLink: {parent_id: string, is_primary: boolean}[]) => void;
     parentsList: Parent[];
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
     rooms: Room[];
@@ -21,7 +24,8 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
     const [formData, setFormData] = useState<Child>({ ...child! });
     const [parentSearchTerm, setParentSearchTerm] = useState('');
     const [filteredParents, setFilteredParents] = useState<Parent[]>([]);
-    const [selectedParentName, setSelectedParentName] = useState('');
+    const [selectedParents, setSelectedParents] = useState<Parent[]>([]);
+    const [primaryParentId, setPrimaryParentId] = useState<string | null>(null);
 
     useEffect(() => {
         if (child) {
@@ -31,20 +35,12 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
                 medical_info: child.medical_info || {},
                 billing: child.billing || {},
             });
-            if (child.primary_parent_id && Array.isArray(parentsList) && parentsList.length > 0) {
-                const linkedParent = parentsList.find(p => p.id === child.primary_parent_id);
-                if (linkedParent) {
-                    const name = `${linkedParent.first_name} ${linkedParent.last_name}`;
-                    setSelectedParentName(`${name} (${linkedParent.email})`);
-                    setParentSearchTerm(name);
-                }
-            } else if (child.parents) {
-                const name = `${child.parents.first_name || ''} ${child.parents.last_name || ''}`;
-                setSelectedParentName(`${name} (${child.parents.email || ''})`.trim());
-                setParentSearchTerm(name.trim());
-            }
+            const initialParents = child.child_parents?.map(cp => cp.parents) || [];
+            setSelectedParents(initialParents);
+            const primary = child.child_parents?.find(cp => cp.is_primary);
+            setPrimaryParentId(primary?.parents.id || null);
         }
-    }, [child, parentsList]);
+    }, [child]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
@@ -62,36 +58,49 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
         setParentSearchTerm(term);
         if (term.length > 1 && Array.isArray(parentsList)) {
             setFilteredParents(parentsList.filter(p =>
-                `${p.first_name || ''} ${p.last_name || ''}`.toLowerCase().includes(term.toLowerCase()) ||
-                (p.email || '').toLowerCase().includes(term.toLowerCase())
+                !selectedParents.some(sp => sp.id === p.id) &&
+                (`${p.first_name || ''} ${p.last_name || ''}`.toLowerCase().includes(term.toLowerCase()) ||
+                (p.email || '').toLowerCase().includes(term.toLowerCase()))
             ).slice(0, 5));
         } else {
             setFilteredParents([]);
         }
-        if (term === '') {
-            setFormData(prev => ({ ...prev, primary_parent_id: '' }));
-            setSelectedParentName('');
-        }
     };
 
     const handleSelectParent = (parent: Parent) => {
-        setFormData(prev => ({ ...prev, primary_parent_id: parent.id }));
-        setSelectedParentName(`${parent.first_name} ${parent.last_name} (${parent.email})`);
-        setParentSearchTerm(`${parent.first_name} ${parent.last_name}`);
+        const newSelected = [...selectedParents, parent];
+        setSelectedParents(newSelected);
+        if (newSelected.length === 1) {
+            setPrimaryParentId(parent.id);
+        }
+        setParentSearchTerm('');
         setFilteredParents([]);
+    };
+    
+    const removeParent = (parentId: string) => {
+        setSelectedParents(selectedParents.filter(p => p.id !== parentId));
+        if (primaryParentId === parentId) {
+            const nextPrimary = selectedParents.find(p => p.id !== parentId);
+            setPrimaryParentId(nextPrimary ? nextPrimary.id : null);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name || formData.age === null) {
-            showAlert("Name and Age are required.", "error");
-            return;
+            showAlert("Name and Age are required.", "error"); return;
         }
-        if (!formData.primary_parent_id) {
-            showAlert("A Primary Parent must be selected.", "error");
-            return;
+        if (selectedParents.length === 0) {
+            showAlert("At least one parent must be linked.", "error"); return;
         }
-        onUpdateChild({ ...formData, id: child!.id });
+        if (!primaryParentId) {
+            showAlert("One parent must be set as the primary contact.", "error"); return;
+        }
+        const parentsToLink = selectedParents.map(p => ({
+            parent_id: p.id,
+            is_primary: p.id === primaryParentId
+        }));
+        onUpdateChild({ ...formData, id: child!.id }, parentsToLink);
     };
 
     if (!child) return null;
@@ -106,11 +115,27 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
                     {Array.isArray(rooms) && rooms.map(room => (<option key={room.id} value={room.id}>{room.name}</option>))}
                 </SelectField>
 
-                <h3 className="form-section-title">Primary Parent/Guardian</h3>
+                <h3 className="form-section-title">Parents/Guardians</h3>
                 <div className="input-group">
-                    <InputField label="Search/Change Parent (Name or Email)" id="parentSearchEdit" name="parentSearchEdit" value={parentSearchTerm} onChange={handleParentSearchChange} icon={Icons.Search} placeholder="Type to search..." />
+                    <InputField label="Search & Add Parent" id="parentSearchEdit" name="parentSearchEdit" value={parentSearchTerm} onChange={handleParentSearchChange} icon={Icons.Search} placeholder="Type to search..." />
                     {filteredParents.length > 0 && (<ul className="search-results-list">{filteredParents.map(p => (<li key={p.id} onClick={() => handleSelectParent(p)} className="search-result-item">{`${p.first_name} ${p.last_name}`} ({p.email})</li>))}</ul>)}
-                    {formData.primary_parent_id && selectedParentName && (<InfoMessage type="success" message={`Selected: ${selectedParentName}`} icon={Icons.UserCheck} />)}
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                    <label className="input-label">Linked Parents</label>
+                    {selectedParents.length > 0 ? (
+                        <div className="space-y-2 p-2 border rounded-md">
+                            {selectedParents.map(parent => (
+                                <div key={parent.id} className="flex items-center gap-3 p-2 bg-secondary rounded">
+                                    <input type="radio" id={`primary_edit_${parent.id}`} name="primary_parent" value={parent.id} checked={primaryParentId === parent.id} onChange={() => setPrimaryParentId(parent.id)} className="h-4 w-4" />
+                                    <label htmlFor={`primary_edit_${parent.id}`} className="flex-1 font-medium">{`${parent.first_name} ${parent.last_name}`}</label>
+                                    <Badge variant={primaryParentId === parent.id ? "default" : "secondary"}>{primaryParentId === parent.id ? 'Primary' : 'Set as Primary'}</Badge>
+                                    <button type="button" onClick={() => removeParent(parent.id)} className="p-1 text-muted-foreground hover:text-destructive"><X size={16} /></button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                         <InfoMessage type="info" message="No parents linked. Use the search box above to find and add parents." />
+                    )}
                 </div>
 
                 <InputField label="Emergency Contact" name="emergency_contact" value={formData.emergency_contact || ''} onChange={handleChange} />

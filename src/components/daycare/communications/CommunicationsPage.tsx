@@ -25,7 +25,7 @@ export const CommunicationsPage: React.FC = () => {
     const getVisibleChildren = () => {
         if (!Array.isArray(children)) return [];
         if (currentUser.role === 'parent') {
-            return children.filter(c => c.primary_parent_id === currentUser.profileId);
+            return children.filter(c => c.child_parents.some(cp => cp.parents?.id === currentUser.profileId));
         }
         return children.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
     };
@@ -72,17 +72,21 @@ export const CommunicationsPage: React.FC = () => {
                 <ScrollArea className="flex-1">
                     {visibleChildren.length > 0 ? (
                         <ul>
-                            {visibleChildren.map(child => (
-                                <li key={child.id}>
-                                    <button
-                                        onClick={() => setSelectedChild(child)}
-                                        className={`w-full text-left p-4 hover:bg-accent ${selectedChild?.id === child.id ? 'bg-accent' : ''}`}
-                                    >
-                                        <p className="font-semibold">{child.name}</p>
-                                        <p className="text-sm text-muted-foreground">{child.parents?.first_name ? `Parent: ${child.parents.first_name} ${child.parents.last_name}`: 'No parent assigned'}</p>
-                                    </button>
-                                </li>
-                            ))}
+                            {visibleChildren.map(child => {
+                                const primaryParent = child.child_parents?.find(cp => cp.is_primary)?.parents;
+                                const parentName = primaryParent ? `${primaryParent.first_name} ${primaryParent.last_name}` : 'No primary parent';
+                                return (
+                                    <li key={child.id}>
+                                        <button
+                                            onClick={() => setSelectedChild(child)}
+                                            className={`w-full text-left p-4 hover:bg-accent ${selectedChild?.id === child.id ? 'bg-accent' : ''}`}
+                                        >
+                                            <p className="font-semibold">{child.name}</p>
+                                            <p className="text-sm text-muted-foreground">Parent: {parentName}</p>
+                                        </button>
+                                    </li>
+                                );
+                            })}
                         </ul>
                     ) : (
                         <p className="p-4 text-muted-foreground">No children found.</p>

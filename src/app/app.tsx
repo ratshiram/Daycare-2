@@ -208,7 +208,7 @@ const App = () => {
         });
 
         return () => { subscription?.unsubscribe(); };
-    }, []);
+    }, [showAlert]);
 
     // Generic fetchData function
     const fetchData = useCallback(async (dataType: string, setDataCallback: Function, tableName: string, order = { column: 'created_at', ascending: false }, select = '*') => {
@@ -227,7 +227,7 @@ const App = () => {
         if (session && appMode && appMode !== 'auth' && !['unknown', 'unknown_profile', 'no_parent_profile', 'exception_profile'].includes(appMode) ) {
             fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
             fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
             fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
             fetchData('messages', setMessages, 'messages', { column: 'created_at', ascending: true });
 
@@ -250,31 +250,55 @@ const App = () => {
     }, [session, appMode, fetchData]);
     
     // --- ALL CRUD OPERATIONS ---
-    const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at'>) => {
-        if (!childFormData.primary_parent_id) { showAlert("Primary Parent is required.", "error"); return; }
+    const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'child_parents'>, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
+        if (parentsToLink.length === 0) { showAlert("At least one parent must be linked.", "error"); return; }
+        if (parentsToLink.filter(p => p.is_primary).length !== 1) { showAlert("Exactly one parent must be marked as primary.", "error"); return; }
         if (childFormData.current_room_id === '') childFormData.current_room_id = null;
+        
         try { 
-            const { error } = await supabase.from('children').insert([childFormData]); 
-            if (error) throw error; 
+            const { data: newChild, error: childError } = await supabase.from('children').insert([childFormData]).select().single();
+            if (childError || !newChild) throw childError || new Error("Failed to create child record.");
+    
+            const childParentLinks = parentsToLink.map(p => ({ child_id: newChild.id, parent_id: p.parent_id, is_primary: p.is_primary }));
+            const { error: linkError } = await supabase.from('child_parents').insert(childParentLinks);
+            if (linkError) {
+                // Attempt to clean up the orphaned child record
+                await supabase.from('children').delete().eq('id', newChild.id);
+                throw linkError;
+            }
+    
             showAlert('Child added successfully!'); 
             setShowAddChildModal(false);
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
-      }, [showAlert, fetchData]);
+    }, [showAlert, fetchData]);
     
     const handleOpenEditChildModal = useCallback((child: Child) => { setChildToEdit(child); setShowEditChildModal(true); }, []);
     
-    const updateChildInSupabase = useCallback(async (updatedChildData: Child) => {
+    const updateChildInSupabase = useCallback(async (updatedChildData: Child, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
         if (!childToEdit?.id) return;
+        if (parentsToLink.length === 0) { showAlert("At least one parent must be linked.", "error"); return; }
+        if (parentsToLink.filter(p => p.is_primary).length !== 1) { showAlert("Exactly one parent must be marked as primary.", "error"); return; }
+        
         try { 
-            const {id, ...dataToUpdate} = updatedChildData; 
-            if (dataToUpdate.current_room_id === '') dataToUpdate.current_room_id = null; 
-            const {error}=await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); 
-            if(error) throw error; 
+            const { id, child_parents, ...dataToUpdate } = updatedChildData;
+            if ('current_room_id' in dataToUpdate && dataToUpdate.current_room_id === '') {
+                (dataToUpdate as any).current_room_id = null;
+            }
+            const { error: childUpdateError } = await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); 
+            if (childUpdateError) throw childUpdateError; 
+
+            const { error: deleteLinksError } = await supabase.from('child_parents').delete().eq('child_id', childToEdit.id);
+            if (deleteLinksError) throw deleteLinksError;
+
+            const newChildParentLinks = parentsToLink.map(p => ({ child_id: childToEdit.id, parent_id: p.parent_id, is_primary: p.is_primary }));
+            const { error: newLinksError } = await supabase.from('child_parents').insert(newChildParentLinks);
+            if (newLinksError) throw newLinksError;
+
             showAlert('Child updated!'); 
             setShowEditChildModal(false); 
             setChildToEdit(null);
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
         } catch(e: any){ showAlert(`Update child error: ${e.message}`,'error'); }
     }, [showAlert, childToEdit, fetchData]);
     
@@ -284,7 +308,7 @@ const App = () => {
             const {error}=await supabase.from('children').delete().eq('id', childId); 
             if(error) throw error; 
             showAlert('Child deleted!');
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
         }catch(e: any){showAlert(`Delete child error: ${e.message}`,'error');}
     }, [showAlert, fetchData]);
 
@@ -294,7 +318,7 @@ const App = () => {
         const now = new Date().toISOString(); 
         const wasCheckedIn = child.check_in_time && !child.check_out_time; 
         const updates = {check_in_time: wasCheckedIn ? child.check_in_time : now, check_out_time: wasCheckedIn ? now : null}; 
-        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
+        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
         }catch(e: any){showAlert(`Check-in/out error: ${e.message}`,'error');}
     }, [showAlert, children, fetchData]);
       
@@ -545,20 +569,20 @@ const App = () => {
     const handleViewInvoiceDetails = useCallback(async (invoice: Invoice) => {
         setInvoiceToView(invoice);
         const childForInvoice = children.find(c => c.id === invoice.child_id);
-        if (childForInvoice?.primary_parent_id) {
-            setLoadingData(prev => ({...prev, parentForInvoice: true}));
-            try {
-                if (childForInvoice.parents) { setParentDetailsForInvoice(childForInvoice.parents); } 
-                else { 
-                    const { data: parentData, error: parentError } = await supabase.from('parents').select('*').eq('id', childForInvoice.primary_parent_id).single(); 
-                    if (parentError) throw parentError; 
-                    setParentDetailsForInvoice(parentData); 
-                }
-            } catch (e: any) { showAlert(`Error fetching parent details: ${e.message}`, 'error'); setParentDetailsForInvoice(null); }
-            finally { setLoadingData(prev => ({...prev, parentForInvoice: false})); }
-        } else { setParentDetailsForInvoice(null); }
+        if (childForInvoice) {
+            const primaryParentLink = childForInvoice.child_parents?.find(cp => cp.is_primary);
+            const primaryParent = primaryParentLink?.parents;
+            if (primaryParent) {
+                setLoadingData(prev => ({...prev, parentForInvoice: true}));
+                // The parent data is already joined, so we can set it directly
+                setParentDetailsForInvoice(primaryParent);
+                setLoadingData(prev => ({...prev, parentForInvoice: false}));
+            } else {
+                setParentDetailsForInvoice(null);
+            }
+        }
         setShowViewInvoiceModal(true);
-    }, [children, showAlert]);
+    }, [children]);
 
     const handleOpenAddWaitlistModal = useCallback(() => { setWaitlistEntryToEdit(null); setShowAddWaitlistModal(true); }, []);
     const handleEditWaitlistEntry = useCallback((entry: WaitlistEntry) => { setWaitlistEntryToEdit(entry); setShowAddWaitlistModal(true); }, []);
@@ -627,7 +651,7 @@ const App = () => {
     const deleteParentFromSupabase = useCallback(async (parentId: string) => {
         if (!window.confirm("Delete parent? This may affect linked children.")) return;
         try {
-            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('children').select('id').eq('primary_parent_id', parentId);
+            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('child_parents').select('child_id').eq('parent_id', parentId);
             if (childrenCheckError) { showAlert(`Error checking linked children: ${childrenCheckError.message}`, 'error'); return; }
             if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign children first.`, 'error'); return; }
             const { error } = await supabase.from('parents').delete().eq('id', parentId);
@@ -738,25 +762,24 @@ const App = () => {
                 }
     
             case 'parent':
+                const getParentChildren = () => {
+                    if (!currentUser || !Array.isArray(children)) return [];
+                    return children.filter(c => c.child_parents.some(cp => cp.parents?.id === currentUser.profileId));
+                };
+                const parentChildren = getParentChildren();
+                const parentChildrenIds = parentChildren.map(c => c.id);
+
                 switch (pageToRender) {
                     case 'ParentDashboard': return <ParentDashboardPage currentUser={currentUser} />;
                     case 'ParentDailyReports': {
-                        if (!currentUser) return <Loading />;
-                        const parentChildrenIds = children.filter(c => c.primary_parent_id === currentUser.profileId).map(c => c.id);
                         const filteredDailyReports = dailyReports.filter(report => parentChildrenIds.includes(report.child_id));
-                        const relevantChildren = children.filter(c => parentChildrenIds.includes(c.id));
-                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={relevantChildren} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
+                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={parentChildren} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
                     }
                     case 'ParentInvoices': {
-                        if (!currentUser) return <Loading />;
-                        const parentChildrenIdsForInvoices = children.filter(c => c.primary_parent_id === currentUser.profileId).map(c => c.id);
-                        const filteredInvoices = invoices.filter(inv => parentChildrenIdsForInvoices.includes(inv.child_id));
-                        const relevantChildrenForInvoices = children.filter(c => parentChildrenIdsForInvoices.includes(c.id));
-                        return <AdminBillingPage invoices={filteredInvoices} children={relevantChildrenForInvoices} loading={loadingData.invoices} onOpenCreateInvoiceModal={null} onViewInvoiceDetails={handleViewInvoiceDetails} />;
+                        const filteredInvoices = invoices.filter(inv => parentChildrenIds.includes(inv.child_id));
+                        return <AdminBillingPage invoices={filteredInvoices} children={parentChildren} loading={loadingData.invoices} onOpenCreateInvoiceModal={null} onViewInvoiceDetails={handleViewInvoiceDetails} />;
                     }
                     case 'ParentMedications': {
-                         if (!currentUser) return <Loading />;
-                         const parentChildren = children.filter(c => c.primary_parent_id === currentUser.profileId);
                          return <ChildrenPage childrenList={parentChildren} loading={loadingData.children} onOpenAddChildModal={()=>{}} onEditChild={()=>{}} onDeleteChild={()=>{}} onToggleCheckIn={()=>{}} onNavigateToChildMedications={handleNavigateToChildMedications} />;
                     }
                      case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('ParentMedications');}} /> : <Loading />;

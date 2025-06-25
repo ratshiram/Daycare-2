@@ -16,7 +16,7 @@ export const AdminGalleryPage: React.FC = () => {
     }, {} as Record<string, string>) : {};
     
     const parentChildrenIds = (currentUser?.role === 'parent' && currentUser.profileId && Array.isArray(children))
-        ? children.filter(c => c.primary_parent_id === currentUser.profileId).map(c => c.id)
+        ? children.filter(c => c.child_parents.some(cp => cp.parents?.id === currentUser.profileId)).map(c => c.id)
         : null;
 
     const photos: { url: string; childName: string; reportDate: string; childId: string }[] = [];

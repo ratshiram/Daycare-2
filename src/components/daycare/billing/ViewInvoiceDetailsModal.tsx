@@ -18,7 +18,8 @@ export const ViewInvoiceDetailsModal: React.FC<ViewInvoiceDetailsModalProps> = (
 
     const handleDownloadPdf = () => {
         if (invoice && child) {
-            generateInvoicePDF(invoice, child, parentDetails);
+            const primaryParent = child.child_parents?.find(cp => cp.is_primary)?.parents || parentDetails;
+            generateInvoicePDF(invoice, child, primaryParent);
         }
     };
     
