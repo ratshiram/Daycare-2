@@ -148,8 +148,6 @@ const App = () => {
 
     // Auth useEffect
     useEffect(() => {
-        setLoadingAuth(true);
-
         const fetchUserProfile = async (user: User) => {
             if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
             try {
@@ -776,7 +774,7 @@ const App = () => {
     };
     
     // --- Main Return for App Component ---
-    if (loadingAuth && !session && appMode === 'auth') {
+    if (loadingAuth) {
         return <Loading />;
     }
     
