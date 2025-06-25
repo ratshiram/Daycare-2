@@ -4,11 +4,10 @@ import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
 import type { Child, Medication } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
-import Loading from '@/app/loading';
+import { useAppState } from '@/app/app';
 
 interface ChildMedicationsPageProps {
     child: Child;
-    medications: Medication[];
     onOpenAddMedicationModal: (childId: string) => void;
     onOpenEditMedicationModal: (medication: Medication) => void;
     onOpenLogAdministrationModal: (medication: Medication) => void;
@@ -17,15 +16,16 @@ interface ChildMedicationsPageProps {
 }
 
 export const ChildMedicationsPage: React.FC<ChildMedicationsPageProps> = ({
-    child, medications, onOpenAddMedicationModal, onOpenEditMedicationModal, onOpenLogAdministrationModal, onDeleteMedication, onCancel
+    child, onOpenAddMedicationModal, onOpenEditMedicationModal, onOpenLogAdministrationModal, onDeleteMedication, onCancel
 }) => {
+    const { medications, currentUser } = useAppState();
     const childMedications = Array.isArray(medications) ? medications.filter(m => m.child_id === child.id) : [];
 
     return (
         <div className="page-card">
             <div className="flex justify-between items-center mb-4">
                 <button onClick={onCancel} className="btn btn-secondary btn-small">
-                    <Icons.ArrowLeft size={18} /> Back to Children
+                    <Icons.ArrowLeft size={18} /> Back
                 </button>
             </div>
 
@@ -58,15 +58,19 @@ export const ChildMedicationsPage: React.FC<ChildMedicationsPageProps> = ({
                                     <td className="td-cell th-md-hidden">{med.frequency_instructions || 'N/A'}</td>
                                     <td className="td-cell th-lg-hidden">{med.end_date ? formatDateForInput(med.end_date) : 'Ongoing'}</td>
                                     <td className="td-cell td-actions">
-                                        <button onClick={() => onOpenLogAdministrationModal(med)} className="btn-icon table-action-button text-green-600" title="Log Dose">
-                                            <Icons.ListChecks size={16} />
-                                        </button>
+                                        {currentUser.role !== 'parent' && (
+                                            <button onClick={() => onOpenLogAdministrationModal(med)} className="btn-icon table-action-button text-green-600" title="Log Dose">
+                                                <Icons.ListChecks size={16} />
+                                            </button>
+                                        )}
                                         <button onClick={() => onOpenEditMedicationModal(med)} className="btn-icon table-action-button edit" title="Edit">
                                             <Icons.Edit3 size={16} />
                                         </button>
-                                        <button onClick={() => onDeleteMedication(med.id)} className="btn-icon table-action-button delete" title="Delete">
-                                            <Icons.Trash2 size={16} />
-                                        </button>
+                                        {currentUser.role !== 'parent' && (
+                                            <button onClick={() => onDeleteMedication(med.id)} className="btn-icon table-action-button delete" title="Delete">
+                                                <Icons.Trash2 size={16} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

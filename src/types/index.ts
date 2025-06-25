@@ -1,3 +1,4 @@
+
 export interface Base {
     id: string;
     created_at: string;
@@ -150,8 +151,16 @@ export interface WaitlistEntry extends Base {
     status?: 'Pending' | 'Contacted' | 'Enrolled' | 'Withdrawn';
 }
 
+export interface Message extends Base {
+    child_id: string;
+    sender_user_id: string; // auth.users.id
+    sender_name: string; // denormalized for display
+    content: string;
+}
+
 export type AppState = {
   currentUser: any | null;
+  appMode: string;
   children: Child[];
   staff: Staff[];
   rooms: Room[];
@@ -163,6 +172,9 @@ export type AppState = {
   invoices: Invoice[];
   waitlistEntries: WaitlistEntry[];
   parentsList: Parent[];
+  messages: Message[];
   setCurrentPage: (page: string) => void;
   loadingData: Record<string, boolean>;
+  showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
+  addMessageToSupabase: (childId: string, content: string) => Promise<void>;
 };

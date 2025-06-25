@@ -2,19 +2,14 @@
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
-import type { DailyReport, Child, Staff } from '@/types';
+import type { DailyReport, Child } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
 import Loading from '@/app/loading';
+import { useAppState } from '@/app/app';
 
-interface AdminGalleryPageProps {
-    dailyReports: DailyReport[];
-    loading: boolean;
-    children: Child[];
-    staff: Staff[];
-    currentUser: any;
-}
-
-export const AdminGalleryPage: React.FC<AdminGalleryPageProps> = ({ dailyReports, loading, children, currentUser }) => {
+export const AdminGalleryPage: React.FC = () => {
+    const { dailyReports, loadingData, children, currentUser } = useAppState();
+    
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
         acc[child.id] = child.name;
         return acc;
@@ -52,14 +47,14 @@ export const AdminGalleryPage: React.FC<AdminGalleryPageProps> = ({ dailyReports
         photos.sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime());
     }
     
-    if (loading && photos.length === 0) return <Loading />;
+    if (loadingData.dailyReports && photos.length === 0) return <Loading />;
 
     return (
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Photo Gallery</h2>
             </div>
-            {(!loading && photos.length === 0) ? (
+            {(!loadingData.dailyReports && photos.length === 0) ? (
                 <InfoMessage message="No photos have been uploaded yet." icon={Icons.Camera} />
             ) : (
                 <div className="gallery-grid">
