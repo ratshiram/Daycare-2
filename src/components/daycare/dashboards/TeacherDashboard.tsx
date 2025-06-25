@@ -75,6 +75,7 @@ export const TeacherDashboardPage = () => {
                         <Button onClick={() => setCurrentPage('AdminGallery')} variant="outline" className="justify-start text-left h-auto py-2"><Icons.Camera className="mr-2"/>Photo Gallery</Button>
                         <Button onClick={() => setCurrentPage('AdminAnnouncements')} variant="outline" className="justify-start text-left h-auto py-2"><Icons.Megaphone className="mr-2"/>View Announcements</Button>
                         <Button onClick={() => setCurrentPage('AdminIncidentReports')} variant="outline" className="justify-start text-left h-auto py-2"><Icons.ShieldAlert className="mr-2"/>Log an Incident</Button>
+                        <Button onClick={() => setCurrentPage('StaffLeaveRequests')} variant="outline" className="justify-start text-left h-auto py-2"><Icons.Plane className="mr-2"/>Request Time Off</Button>
                     </CardContent>
                 </Card>
                 <Card>
@@ -100,3 +101,5 @@ export const TeacherDashboardPage = () => {
         </div>
     );
 };
+
+    

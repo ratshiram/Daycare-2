@@ -152,6 +152,14 @@ export interface WaitlistEntry extends Base {
     status?: 'Pending' | 'Contacted' | 'Enrolled' | 'Withdrawn';
 }
 
+export interface StaffLeaveRequest extends Base {
+    staff_id: string;
+    start_date: string;
+    end_date: string;
+    reason?: string | null;
+    status: 'pending' | 'approved' | 'rejected';
+}
+
 export interface Message extends Base {
     child_id: string;
     sender_user_id: string; // auth.users.id
@@ -173,11 +181,14 @@ export type AppState = {
   invoices: Invoice[];
   waitlistEntries: WaitlistEntry[];
   parentsList: Parent[];
+  staffLeaveRequests: StaffLeaveRequest[];
   messages: Message[];
   setCurrentPage: (page: string) => void;
   loadingData: Record<string, boolean>;
   showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
   addMessageToSupabase: (childId: string, content: string) => Promise<void>;
 };
+
+    
 
     

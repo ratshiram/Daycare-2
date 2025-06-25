@@ -20,6 +20,8 @@ import { EditChildModal } from '@/components/daycare/children/EditChildModal';
 import { StaffPage } from '@/components/daycare/staff/StaffPage';
 import { AddStaffModal } from '@/components/daycare/staff/AddStaffPage';
 import { EditStaffModal } from '@/components/daycare/staff/EditStaffModal';
+import { StaffLeaveRequestPage } from '@/components/daycare/staff/StaffLeaveRequestPage';
+import { RequestLeaveModal } from '@/components/daycare/staff/RequestLeaveModal';
 import { AdminParentsPage } from '@/components/daycare/parents/AdminParentsPage';
 import { AddParentModal } from '@/components/daycare/parents/AddParentPage';
 import { EditParentModal } from '@/components/daycare/parents/EditParentModal';
@@ -46,7 +48,7 @@ import { AddOrEditWaitlistModal } from '@/components/daycare/waitlist/AddToWaitl
 import { AdminGalleryPage } from '@/components/daycare/gallery/AdminGalleryPage';
 import { CommunicationsPage } from '@/components/daycare/communications/CommunicationsPage';
 import { useToast } from '@/hooks/use-toast';
-import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, WaitlistEntry, Message, AppState } from '@/types';
+import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, StaffLeaveRequest, WaitlistEntry, Message, AppState } from '@/types';
 import Loading from './loading';
 import { Icons } from '@/components/Icons';
 
@@ -101,6 +103,7 @@ const App = () => {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
     const [parentsList, setParentsList] = useState<Parent[]>([]);
+    const [staffLeaveRequests, setStaffLeaveRequests] = useState<StaffLeaveRequest[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
 
     const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
@@ -139,6 +142,7 @@ const App = () => {
     const [showAddWaitlistModal, setShowAddWaitlistModal] = useState(false);
     const [waitlistEntryToEdit, setWaitlistEntryToEdit] = useState<WaitlistEntry | null>(null);
     const [showCreateAnnouncementModal, setShowCreateAnnouncementModal] = useState(false);
+    const [showRequestLeaveModal, setShowRequestLeaveModal] = useState(false);
 
     const showAlert = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
         toast({
@@ -169,7 +173,7 @@ const App = () => {
                 }
             };
 
-            const fetchAllDataForRole = async (role: string) => {
+            const fetchAllDataForRole = async (role: string, userProfile: any) => {
                 const fetchData = async (dataType: string, query: Promise<any>) => {
                     setLoadingData(prev => ({...prev, [dataType]: true}));
                     try {
@@ -196,6 +200,11 @@ const App = () => {
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
                         dataPromises.staff = fetchData('staff', supabase.from('staff').select('*').order('name', { ascending: true }));
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        if (role === 'admin') {
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false }));
+                        } else if (userProfile?.staff_id) {
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').eq('staff_id', userProfile.staff_id).order('start_date', { ascending: false }));
+                        }
                     } else if (role === 'parent') {
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
@@ -215,7 +224,7 @@ const App = () => {
                     const setters: { [key: string]: React.Dispatch<React.SetStateAction<any>> } = {
                         rooms: setRooms, announcements: setAnnouncements, children: setChildren, medications: setMedications, messages: setMessages,
                         staff: setStaff, dailyReports: setDailyReports, invoices: setInvoices, incidentReports: setIncidentReports,
-                        medicationLogs: setMedicationLogs, waitlistEntries: setWaitlistEntries, parentsList: setParentsList,
+                        medicationLogs: setMedicationLogs, waitlistEntries: setWaitlistEntries, parentsList: setParentsList, staffLeaveRequests: setStaffLeaveRequests
                     };
 
                     keys.forEach((key, index) => {
@@ -247,7 +256,7 @@ const App = () => {
                     }
                     setCurrentPage(initialPage);
                     
-                    await fetchAllDataForRole(userProfileDetails.role);
+                    await fetchAllDataForRole(userProfileDetails.role, userProfileDetails);
 
                 } else {
                     setAppMode('auth');
@@ -255,7 +264,7 @@ const App = () => {
                     setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
                     setIncidentReports([]); setMedications([]); setMedicationLogs([]);
                     setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
-                    setParentsList([]); setMessages([]);
+                    setParentsList([]); setMessages([]); setStaffLeaveRequests([]);
                     setCurrentPage('');
                 }
             } catch (error) {
@@ -279,13 +288,13 @@ const App = () => {
     }, [showAlert]);
     
     // Generic fetchData function used by CRUD operations below
-    const fetchData = useCallback(async (dataType: string, setDataCallback: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
+    const fetchData = useCallback(async (dataType: string, query: Promise<any>) => {
         setLoadingData(prev => ({...prev, [dataType]: true}));
         try {
           const { data, error } = await query;
           if (error) throw error;
-          setDataCallback(data || []);
-        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); setDataCallback([]); }
+          return data || [];
+        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); return []; }
         finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
     }, [showAlert]);
     
@@ -712,6 +721,46 @@ const App = () => {
         }
     }, [currentUser, showAlert, fetchData]);
     
+    const addStaffLeaveRequestToSupabase = useCallback(async (requestData: Omit<StaffLeaveRequest, 'id' | 'created_at' | 'staff_id' | 'status'>) => {
+        if (!currentUser?.staff_id) {
+            showAlert("You must be logged in as staff to request leave.", "error");
+            return;
+        }
+        try {
+            const dataToInsert = {
+                ...requestData,
+                staff_id: currentUser.staff_id,
+                status: 'pending' as const,
+            };
+            const { error } = await supabase.from('staff_leave_requests').insert([dataToInsert]);
+            if (error) throw error;
+            showAlert('Leave request submitted successfully!');
+            setShowRequestLeaveModal(false);
+            const query = currentUser.role === 'admin'
+                ? supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false })
+                : supabase.from('staff_leave_requests').select('*').eq('staff_id', currentUser.staff_id).order('start_date', { ascending: false });
+            fetchData('staffLeaveRequests', setStaffLeaveRequests, query as any);
+        } catch (e: any) {
+            showAlert(`Error submitting leave request: ${e.message}`, 'error');
+        }
+    }, [showAlert, currentUser, fetchData]);
+
+    const updateStaffLeaveRequestStatus = useCallback(async (requestId: string, status: 'approved' | 'rejected') => {
+        if (currentUser?.role !== 'admin') {
+            showAlert("You do not have permission to perform this action.", "error");
+            return;
+        }
+        try {
+            const { error } = await supabase.from('staff_leave_requests').update({ status }).eq('id', requestId);
+            if (error) throw error;
+            showAlert(`Request has been ${status}.`);
+            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false }));
+        } catch (e: any) {
+            showAlert(`Error updating request: ${e.message}`, 'error');
+        }
+    }, [showAlert, currentUser, fetchData]);
+
+
     // Auth Handlers
     const handleSignUp = async (email: string, password: string) => {
         setAuthActionLoading(true);
@@ -734,8 +783,8 @@ const App = () => {
     };
 
     // Navigation definitions
-    const adminNav = [ { name: 'AdminDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'Staff', label: 'Staff', icon: Icons.UsersIconAliased }, { name: 'AdminParents', label: 'Parents', icon: Icons.UserCog }, { name: 'Rooms', label: 'Rooms', icon: Icons.Building }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'AdminIncidentReports', label: 'Incident Reports', icon: Icons.ShieldAlert }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'AdminBilling', label: 'Billing', icon: Icons.DollarSign }, { name: 'AdminWaitlist', label: 'Waitlist', icon: Icons.ListOrdered }, ];
-    const teacherNav = [ { name: 'TeacherDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone } ];
+    const adminNav = [ { name: 'AdminDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'Staff', label: 'Staff', icon: Icons.UsersIconAliased }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane }, { name: 'AdminParents', label: 'Parents', icon: Icons.UserCog }, { name: 'Rooms', label: 'Rooms', icon: Icons.Building }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'AdminIncidentReports', label: 'Incident Reports', icon: Icons.ShieldAlert }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'AdminBilling', label: 'Billing', icon: Icons.DollarSign }, { name: 'AdminWaitlist', label: 'Waitlist', icon: Icons.ListOrdered }, ];
+    const teacherNav = [ { name: 'TeacherDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane } ];
     const assistantNav = [ { name: 'AssistantDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'AdminDailyReports', label: 'Create Report', icon: Icons.FileText }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera } ];
     const parentNav = [ { name: 'ParentDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'ParentDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'ParentMedications', label: 'Medications', icon: Icons.Pill }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'ParentInvoices', label: 'Invoices', icon: Icons.DollarSign }, { name: 'AdminGallery', label: 'Photo Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone } ];
     let currentNavItems = []; let currentPortalName = "Daycare Portal";
@@ -754,6 +803,7 @@ const App = () => {
                     case 'AdminDashboard': return <AdminDashboardPage />;
                     case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children || false} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
                     case 'Staff': return <StaffPage staffList={staff} loading={loadingData.staff || false} onOpenAddStaffModal={() => setShowAddStaffModal(true)} onEditStaff={handleOpenEditStaffModal} onDeleteStaff={deleteStaffFromSupabase} rooms={rooms} />;
+                    case 'StaffLeaveRequests': return <StaffLeaveRequestPage onOpenRequestLeaveModal={() => {}} onUpdateRequestStatus={updateStaffLeaveRequestStatus} />;
                     case 'AdminParents': return <AdminParentsPage parentsList={parentsList} loading={loadingData.parentsList || false} onOpenAddParentModal={() => setShowAddParentModal(true)} onEditParent={handleOpenEditParentModal} onDeleteParent={deleteParentFromSupabase} />;
                     case 'Rooms': return <RoomManagementPage rooms={rooms} loading={loadingData.rooms || false} onOpenAddRoomModal={() => setShowAddRoomModal(true)} onEditRoom={handleOpenEditRoomModal} onDeleteRoom={deleteRoomFromSupabase} />;
                     case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
@@ -775,6 +825,7 @@ const App = () => {
                     case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
                     case 'AdminGallery': return <AdminGalleryPage />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
+                    case 'StaffLeaveRequests': return <StaffLeaveRequestPage onOpenRequestLeaveModal={() => setShowRequestLeaveModal(true)} onUpdateRequestStatus={updateStaffLeaveRequestStatus} />;
                     case 'Communications': return <CommunicationsPage />;
                     default: return <TeacherDashboardPage />;
                 }
@@ -830,7 +881,7 @@ const App = () => {
     return (
         <ErrorBoundary>
             <AppStateContext.Provider value={{
-                currentUser, appMode, showAlert, children, staff, rooms, dailyReports, incidentReports, medications, medicationLogs, announcements, invoices, waitlistEntries, parentsList, setCurrentPage, loadingData, messages, addMessageToSupabase
+                currentUser, appMode, showAlert, children, staff, rooms, dailyReports, incidentReports, medications, medicationLogs, announcements, invoices, waitlistEntries, parentsList, staffLeaveRequests, setCurrentPage, loadingData, messages, addMessageToSupabase
             }}>
                 <div className={`app-container`}>
                     {(!session || appMode === 'auth') ? (
@@ -903,6 +954,7 @@ const App = () => {
                     {session && showCreateInvoiceModal && <CreateInvoiceModal children={children} onAddInvoice={addInvoiceToSupabase} onCancel={() => setShowCreateInvoiceModal(false)} showAlert={showAlert} />}
                     {session && showViewInvoiceModal && invoiceToView && <ViewInvoiceDetailsModal invoice={invoiceToView} child={children.find(c => c.id === invoiceToView.child_id)} parentDetails={parentDetailsForInvoice} onClose={() => { setShowViewInvoiceModal(false); setInvoiceToView(null); setParentDetailsForInvoice(null); }} />}
                     {session && showAddWaitlistModal && <AddOrEditWaitlistModal onAddOrUpdateWaitlistEntry={addOrUpdateWaitlistEntryToSupabase} onCancel={() => {setWaitlistEntryToEdit(null); setShowAddWaitlistModal(false);}} showAlert={showAlert} initialData={waitlistEntryToEdit} />}
+                    {session && showRequestLeaveModal && <RequestLeaveModal onClose={() => setShowRequestLeaveModal(false)} onSubmitRequest={addStaffLeaveRequestToSupabase} showAlert={showAlert} />}
                 </div>
             </AppStateContext.Provider>
         </ErrorBoundary>
@@ -910,5 +962,7 @@ const App = () => {
 };
 
 export default App;
+
+    
 
     

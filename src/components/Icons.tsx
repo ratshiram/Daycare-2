@@ -42,7 +42,8 @@ import {
     UserCog, 
     Search, 
     BookCopy,
-    MessageSquare
+    MessageSquare,
+    Plane
 } from 'lucide-react';
 
 export const Icons = {
@@ -90,4 +91,7 @@ export const Icons = {
     Search,
     BookCopy,
     MessageSquare,
+    Plane,
 };
+
+    
