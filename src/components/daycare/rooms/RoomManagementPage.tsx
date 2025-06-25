@@ -21,7 +21,7 @@ export const RoomManagementPage: React.FC<RoomManagementPageProps> = ({ rooms, l
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Rooms</h2>
                 <button onClick={onOpenAddRoomModal} className="btn btn-primary btn-small">
-                    <Icons.PlusCircle size={18} /> Add New Room
+                    <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">Add New Room</span>
                 </button>
             </div>
             {(!loading && (!Array.isArray(rooms) || rooms.length === 0)) ? (

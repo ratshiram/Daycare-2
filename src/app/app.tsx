@@ -4,6 +4,7 @@
 import React, { useState, useEffect, createContext, useCallback, useContext } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import type { Session, User } from '@supabase/supabase-js';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
@@ -69,20 +70,24 @@ const App = () => {
     const [appMode, setAppMode] = useState('auth');
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [currentPage, setCurrentPage] = useState('');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    
+    const isMobile = useIsMobile();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth <= 768) {
-                setIsSidebarOpen(false);
-            } else {
-                setIsSidebarOpen(true);
-            }
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize();
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        if (isMobile !== undefined) {
+            setIsSidebarOpen(!isMobile);
+        }
+    }, [isMobile]);
+
+    const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+
+    const closeSidebarOnMobile = () => {
+        if (isMobile) {
+            setIsSidebarOpen(false);
+        }
+    };
+
 
     // Data states
     const [children, setChildren] = useState<Child[]>([]);
@@ -145,85 +150,85 @@ const App = () => {
     
     // --- Centralized Data Loading Effect ---
     useEffect(() => {
-        const fetchUserProfile = async (user: User) => {
-            if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
-            try {
-                const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
-                if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
-                if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
-
-                const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
-                if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
-                if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
-
-                return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-            } catch (e) {
-                console.error("Exception fetching user profile:", e);
-                return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-            }
-        };
-
-        const fetchData = async (dataType: string, query: Promise<any>) => {
-            setLoadingData(prev => ({...prev, [dataType]: true}));
-            try {
-              const { data, error } = await query;
-              if (error) throw error;
-              return data || [];
-            } catch (e: any) { 
-                showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); 
-                return [];
-            } finally { 
-                setLoadingData(prev => ({...prev, [dataType]: false})); 
-            }
-        };
-
-        const fetchAllDataForRole = async (role: string) => {
-            try {
-                const dataPromises: { [key: string]: Promise<any> } = {
-                    rooms: fetchData('rooms', supabase.from('rooms').select('*').order('name', { ascending: true })),
-                    announcements: fetchData('announcements', supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
-                    children: fetchData('children', supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
-                    medications: fetchData('medications', supabase.from('medications').select('*').order('medication_name', { ascending: true })),
-                    messages: fetchData('messages', supabase.from('messages').select('*').order('created_at', { ascending: true })),
-                };
-        
-                if (['admin', 'teacher', 'assistant'].includes(role)) {
-                    dataPromises.staff = fetchData('staff', supabase.from('staff').select('*').order('name', { ascending: true }));
-                    dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
-                } else if (role === 'parent') {
-                    dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
-                    dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                }
-                
-                if (role === 'admin') {
-                    dataPromises.incidentReports = fetchData('incidentReports', supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
-                    dataPromises.medicationLogs = fetchData('medicationLogs', supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
-                    dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                    dataPromises.waitlistEntries = fetchData('waitlistEntries', supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
-                    dataPromises.parentsList = fetchData('parentsList', supabase.from('parents').select('*').order('last_name', { ascending: true }));
-                }
-        
-                const results = await Promise.all(Object.values(dataPromises));
-                const keys = Object.keys(dataPromises);
-                
-                const setters: { [key: string]: React.Dispatch<React.SetStateAction<any>> } = {
-                    rooms: setRooms, announcements: setAnnouncements, children: setChildren, medications: setMedications, messages: setMessages,
-                    staff: setStaff, dailyReports: setDailyReports, invoices: setInvoices, incidentReports: setIncidentReports,
-                    medicationLogs: setMedicationLogs, waitlistEntries: setWaitlistEntries, parentsList: setParentsList,
-                };
-
-                keys.forEach((key, index) => {
-                    if (setters[key]) {
-                        setters[key](results[index]);
-                    }
-                });
-
-            } catch (e: any) {
-                showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
-            }
-        };
-        
         const processSessionChange = async (sessionData: Session | null) => {
+            const fetchUserProfile = async (user: User) => {
+                if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
+                try {
+                    const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
+                    if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
+                    if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
+
+                    const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
+                    if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
+                    if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
+
+                    return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
+                } catch (e) {
+                    console.error("Exception fetching user profile:", e);
+                    return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
+                }
+            };
+
+            const fetchAllDataForRole = async (role: string) => {
+                const fetchData = async (dataType: string, query: Promise<any>) => {
+                    setLoadingData(prev => ({...prev, [dataType]: true}));
+                    try {
+                      const { data, error } = await query;
+                      if (error) throw error;
+                      return data || [];
+                    } catch (e: any) { 
+                        showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); 
+                        return [];
+                    } finally { 
+                        setLoadingData(prev => ({...prev, [dataType]: false})); 
+                    }
+                };
+
+                try {
+                    const dataPromises: { [key: string]: Promise<any> } = {
+                        rooms: fetchData('rooms', supabase.from('rooms').select('*').order('name', { ascending: true })),
+                        announcements: fetchData('announcements', supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
+                        children: fetchData('children', supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+                        medications: fetchData('medications', supabase.from('medications').select('*').order('medication_name', { ascending: true })),
+                        messages: fetchData('messages', supabase.from('messages').select('*').order('created_at', { ascending: true })),
+                    };
+            
+                    if (['admin', 'teacher', 'assistant'].includes(role)) {
+                        dataPromises.staff = fetchData('staff', supabase.from('staff').select('*').order('name', { ascending: true }));
+                        dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                    } else if (role === 'parent') {
+                        dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                    }
+                    
+                    if (role === 'admin') {
+                        dataPromises.incidentReports = fetchData('incidentReports', supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
+                        dataPromises.medicationLogs = fetchData('medicationLogs', supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
+                        dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        dataPromises.waitlistEntries = fetchData('waitlistEntries', supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
+                        dataPromises.parentsList = fetchData('parentsList', supabase.from('parents').select('*').order('last_name', { ascending: true }));
+                    }
+            
+                    const results = await Promise.all(Object.values(dataPromises));
+                    const keys = Object.keys(dataPromises);
+                    
+                    const setters: { [key: string]: React.Dispatch<React.SetStateAction<any>> } = {
+                        rooms: setRooms, announcements: setAnnouncements, children: setChildren, medications: setMedications, messages: setMessages,
+                        staff: setStaff, dailyReports: setDailyReports, invoices: setInvoices, incidentReports: setIncidentReports,
+                        medicationLogs: setMedicationLogs, waitlistEntries: setWaitlistEntries, parentsList: setParentsList,
+                    };
+
+                    keys.forEach((key, index) => {
+                        if (setters[key]) {
+                            setters[key](results[index]);
+                        }
+                    });
+
+                } catch (e: any) {
+                    showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
+                }
+            };
+        
             try {
                 setSession(sessionData);
 
@@ -831,46 +836,51 @@ const App = () => {
                     {(!session || appMode === 'auth') ? (
                         <AuthPage onSignUp={handleSignUp} onSignIn={handleSignIn} loading={authActionLoading} />
                     ) : (
-                        <div className={`main-app-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-                             {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
-                                <aside className="sidebar">
-                                    <div className="sidebar-header">
-                                        {isSidebarOpen && <span className="sidebar-title">{currentPortalName}</span>}
-                                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle-button">
-                                            {isSidebarOpen ? <Icons.X size={20} /> : <Icons.Menu size={20} />}
-                                        </button>
-                                    </div>
-                                    <nav className="sidebar-nav">
-                                        {currentNavItems.map(item => (
-                                            <button key={item.name} onClick={() => { setCurrentPage(item.name); if (window.innerWidth <= 768 && isSidebarOpen) setIsSidebarOpen(false); }} className={`sidebar-nav-item ${currentPage === item.name ? 'active' : ''}`} title={item.label || item.name}>
-                                                <item.icon size={isSidebarOpen ? 18 : 22} />
-                                                {isSidebarOpen && <span className="sidebar-nav-label">{item.label || item.name}</span>}
-                                            </button>
-                                        ))}
-                                    </nav>
-                                    <div className="sidebar-footer">
-                                        <button onClick={handleSignOut} className={`btn btn-danger ${isSidebarOpen ? 'btn-full-width' : 'btn-icon'}`} title="Sign Out">
-                                            <Icons.LogOut size={20} />
-                                            {isSidebarOpen && <span className="ml-2">Sign Out</span>}
-                                        </button>
-                                    </div>
-                                </aside>
+                        <>
+                            {isMobile && isSidebarOpen && (
+                                <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
                             )}
-                            <main className="main-content">
-                                <header className="main-header">
-                                    {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
-                                        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="mobile-menu-button">
-                                            <Icons.Menu size={24} />
-                                        </button>
-                                    )}
-                                    <h1 className="page-title">{currentNavItems.find(item => item.name === currentPage)?.label || currentPage.replace(/([A-Z])/g, ' $1').trim() || "Daycare Management"}</h1>
-                                    <div className="header-user-controls">
-                                        {session?.user && <div className="user-email">Logged in: <span>{currentUser?.name || session.user.email} ({currentUser?.role || 'N/A'})</span></div>}
-                                    </div>
-                                </header>
-                                <div className="page-content-area">{renderCurrentPage()}</div>
-                            </main>
-                        </div>
+                            <div className={`main-app-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+                                 {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
+                                    <aside className="sidebar">
+                                        <div className="sidebar-header">
+                                            {isSidebarOpen && <span className="sidebar-title">{currentPortalName}</span>}
+                                            <button onClick={toggleSidebar} className="sidebar-toggle-button">
+                                                {isSidebarOpen ? <Icons.X size={20} /> : <Icons.Menu size={20} />}
+                                            </button>
+                                        </div>
+                                        <nav className="sidebar-nav">
+                                            {currentNavItems.map(item => (
+                                                <button key={item.name} onClick={() => { setCurrentPage(item.name); closeSidebarOnMobile(); }} className={`sidebar-nav-item ${currentPage === item.name ? 'active' : ''}`} title={item.label || item.name}>
+                                                    <item.icon size={isSidebarOpen ? 18 : 22} />
+                                                    {isSidebarOpen && <span className="sidebar-nav-label">{item.label || item.name}</span>}
+                                                </button>
+                                            ))}
+                                        </nav>
+                                        <div className="sidebar-footer">
+                                            <button onClick={handleSignOut} className={`btn btn-danger ${isSidebarOpen ? 'btn-full-width' : 'btn-icon'}`} title="Sign Out">
+                                                <Icons.LogOut size={20} />
+                                                {isSidebarOpen && <span className="ml-2">Sign Out</span>}
+                                            </button>
+                                        </div>
+                                    </aside>
+                                )}
+                                <main className="main-content">
+                                    <header className="main-header">
+                                        {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
+                                            <button onClick={toggleSidebar} className="mobile-menu-button">
+                                                <Icons.Menu size={24} />
+                                            </button>
+                                        )}
+                                        <h1 className="page-title">{currentNavItems.find(item => item.name === currentPage)?.label || currentPage.replace(/([A-Z])/g, ' $1').trim() || "Daycare Management"}</h1>
+                                        <div className="header-user-controls">
+                                            {session?.user && <div className="user-email">Logged in: <span>{currentUser?.name || session.user.email} ({currentUser?.role || 'N/A'})</span></div>}
+                                        </div>
+                                    </header>
+                                    <div className="page-content-area">{renderCurrentPage()}</div>
+                                </main>
+                            </div>
+                        </>
                     )}
                     <footer className="app-footer">Evergreen Tots 2025 &copy; Evergreen Tots App</footer>
                     

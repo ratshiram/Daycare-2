@@ -32,7 +32,7 @@ export const ChildMedicationsPage: React.FC<ChildMedicationsPageProps> = ({
             <div className="page-card-header">
                 <h2 className="page-card-title">Medications for {child.name}</h2>
                 <button onClick={() => onOpenAddMedicationModal(child.id)} className="btn btn-primary btn-small">
-                    <Icons.PlusCircle size={18} /> Add Medication
+                    <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">Add Medication</span>
                 </button>
             </div>
 

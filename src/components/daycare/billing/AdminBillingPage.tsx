@@ -28,7 +28,7 @@ export const AdminBillingPage: React.FC<AdminBillingPageProps> = ({ invoices, lo
                 <h2 className="page-card-title">Billing & Invoices</h2>
                 {onOpenCreateInvoiceModal && (
                     <button onClick={onOpenCreateInvoiceModal} className="btn btn-primary btn-small">
-                        <Icons.PlusCircle size={18} /> New Invoice
+                        <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">New Invoice</span>
                     </button>
                 )}
             </div>
@@ -43,7 +43,7 @@ export const AdminBillingPage: React.FC<AdminBillingPageProps> = ({ invoices, lo
                                 <th className="th-cell">Child</th>
                                 <th className="th-cell th-sm-hidden">Amount</th>
                                 <th className="th-cell th-md-hidden">Due Date</th>
-                                <th className="th-cell">Status</th>
+                                <th className="th-cell th-sm-hidden">Status</th>
                                 <th className="th-cell th-actions">Actions</th>
                             </tr>
                         </thead>
@@ -54,7 +54,7 @@ export const AdminBillingPage: React.FC<AdminBillingPageProps> = ({ invoices, lo
                                     <td className="td-cell">{childNameMap[invoice.child_id] || 'N/A'}</td>
                                     <td className="td-cell th-sm-hidden">${Number(invoice.amount_due).toFixed(2)}</td>
                                     <td className="td-cell th-md-hidden">{invoice.due_date ? formatDateForInput(invoice.due_date) : 'N/A'}</td>
-                                    <td className="td-cell">
+                                    <td className="td-cell td-sm-hidden">
                                         <span className={`status-badge status-badge-${invoice.status?.toLowerCase()}`}>{invoice.status}</span>
                                     </td>
                                     <td className="td-cell td-actions">

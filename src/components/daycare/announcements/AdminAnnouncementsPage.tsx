@@ -31,7 +31,7 @@ export const AdminAnnouncementsPage: React.FC<AdminAnnouncementsPageProps> = ({
                 <h2 className="page-card-title">Announcements</h2>
                 {onNavigateToCreateAnnouncement && (
                     <button onClick={onNavigateToCreateAnnouncement} className="btn btn-primary btn-small">
-                        <Icons.PlusCircle size={18} /> New Announcement
+                        <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">New Announcement</span>
                     </button>
                 )}
             </div>

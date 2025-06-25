@@ -68,7 +68,7 @@
 
   /* Header */
   .main-header { @apply flex items-center justify-between bg-card shadow-sm px-4 py-3 border-b; }
-  .page-title { @apply text-xl md:text-2xl font-bold text-foreground; }
+  .page-title { @apply text-xl md:text-2xl font-bold text-foreground truncate; }
   .mobile-menu-button { @apply md:hidden text-muted-foreground hover:text-foreground; }
   .header-user-controls { @apply flex items-center gap-4; }
   .user-email { @apply text-sm text-muted-foreground hidden sm:block; }
@@ -91,6 +91,7 @@
   .sidebar-closed .sidebar-nav-item { @apply justify-center; }
   .sidebar-footer { @apply p-4 mt-auto border-t; }
   .sidebar-closed .sidebar-footer-icon-button { @apply w-full; }
+  .sidebar-overlay { @apply fixed inset-0 bg-black/60 z-30 md:hidden; }
 
   /* Footer */
   .app-footer { @apply text-center p-4 text-sm text-muted-foreground border-t bg-card; }
@@ -150,7 +151,7 @@
   .th-cell, .td-cell { @apply p-3 align-middle; }
   .th-cell { @apply font-medium text-muted-foreground; }
   .table-row { @apply border-b transition-colors hover:bg-muted/50; }
-  .td-actions { @apply flex items-center gap-1.5; }
+  .td-actions { @apply flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-1.5; }
   .table-action-button.edit { @apply text-blue-500 hover:text-blue-700; }
   .table-action-button.delete { @apply text-red-500 hover:text-red-700; }
 

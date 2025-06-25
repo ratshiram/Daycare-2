@@ -35,7 +35,7 @@ export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ da
                 <h2 className="page-card-title">Daily Reports</h2>
                 {onOpenCreateReportModal && (
                     <button onClick={onOpenCreateReportModal} className="btn btn-primary btn-small">
-                        <Icons.PlusCircle size={18} /> Create Report
+                        <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">Create Report</span>
                     </button>
                 )}
             </div>

@@ -27,7 +27,7 @@ export const StaffPage: React.FC<StaffPageProps> = ({ staffList, loading, onOpen
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Staff</h2>
                 <button onClick={onOpenAddStaffModal} className="btn btn-primary btn-small">
-                    <Icons.UserPlus size={18} /> Add New Staff
+                    <Icons.UserPlus size={18} /> <span className="hidden sm:inline">Add New Staff</span>
                 </button>
             </div>
             {(!loading && (!Array.isArray(staffList) || staffList.length === 0)) ? (

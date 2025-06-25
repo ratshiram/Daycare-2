@@ -21,7 +21,7 @@ export const AdminParentsPage: React.FC<AdminParentsPageProps> = ({ parentsList,
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Parents</h2>
                 <button onClick={onOpenAddParentModal} className="btn btn-primary btn-small">
-                    <Icons.UserPlus size={18} /> Add New Parent
+                    <Icons.UserPlus size={18} /> <span className="hidden sm:inline">Add New Parent</span>
                 </button>
             </div>
             {(!loading && (!Array.isArray(parentsList) || parentsList.length === 0)) ? (

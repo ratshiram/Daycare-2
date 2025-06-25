@@ -28,7 +28,7 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                 <h2 className="page-card-title">Manage Children</h2>
                 {canPerformActions && (
                     <button onClick={onOpenAddChildModal} className="btn btn-primary btn-small">
-                        <Icons.UserPlus size={18} /> Add New Child
+                        <Icons.UserPlus size={18} /> <span className="hidden sm:inline">Add New Child</span>
                     </button>
                 )}
             </div>

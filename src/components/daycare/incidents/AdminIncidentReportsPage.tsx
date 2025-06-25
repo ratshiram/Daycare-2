@@ -33,7 +33,7 @@ export const AdminIncidentReportsPage: React.FC<AdminIncidentReportsPageProps> =
             <div className="page-card-header">
                 <h2 className="page-card-title">Incident Reports</h2>
                 <button onClick={onOpenLogIncidentModal} className="btn btn-primary btn-small">
-                    <Icons.PlusCircle size={18} /> Log New Incident
+                    <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">Log New Incident</span>
                 </button>
             </div>
             {(!loading && (!Array.isArray(incidentReports) || incidentReports.length === 0)) ? (
