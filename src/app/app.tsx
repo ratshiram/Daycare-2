@@ -54,7 +54,7 @@ type CurrentUser = User & { role: string; name: string; profileId: string | null
 // --- Contexts ---
 const AppStateContext = createContext<AppState | null>(null);
 export const useAppState = () => {
-    const context = useContext(AppStateStateContext);
+    const context = useContext(AppStateContext);
     if (!context) {
         throw new Error('useAppState must be used within an AppStateProvider');
     }
@@ -143,100 +143,105 @@ const App = () => {
         });
     }, [toast]);
     
-    const fetchData = useCallback(async (dataType: string, setDataCallback: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
-        setLoadingData(prev => ({...prev, [dataType]: true}));
-        try {
-          const { data, error } = await query;
-          if (error) throw error;
-          setDataCallback(data || []);
-        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); setDataCallback([]); }
-        finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
-    }, [showAlert]);
-    
-    const fetchAllDataForRole = useCallback(async (role: string) => {
-        try {
-            const promises = [
-                fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
-                fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
-                fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
-                fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
-                fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
-            ];
-    
-            if (['admin', 'teacher', 'assistant'].includes(role)) {
-                promises.push(fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true })));
-                promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
-            } else if (role === 'parent') {
-                promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
-                promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
-            }
-            
-            if (role === 'admin') {
-                promises.push(fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false })));
-                promises.push(fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false })));
-                promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
-                promises.push(fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true })));
-                promises.push(fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true })));
-            }
-    
-            await Promise.all(promises);
-        } catch (e: any) {
-            showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
-        }
-    }, [fetchData, showAlert]);
-
-    const fetchUserProfile = useCallback(async (user: User) => {
-        if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
-        try {
-            const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
-            if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
-            if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
-
-            const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
-            if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
-            if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
-
-            return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-        } catch (e) {
-            console.error("Exception fetching user profile:", e);
-            return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-        }
-    }, []);
-
-    const processSessionChange = useCallback(async (sessionData: Session | null) => {
-        setAppIsLoading(true);
-        setSession(sessionData);
-
-        if (sessionData?.user) {
-            const userProfileDetails = await fetchUserProfile(sessionData.user);
-            setCurrentUser({ ...sessionData.user, ...userProfileDetails } as CurrentUser);
-            setAppMode(userProfileDetails.role);
-
-            let initialPage = '';
-            switch (userProfileDetails.role) {
-                case 'admin': initialPage = 'AdminDashboard'; break;
-                case 'teacher': initialPage = 'TeacherDashboard'; break;
-                case 'assistant': initialPage = 'AssistantDashboard'; break;
-                case 'parent': initialPage = 'ParentDashboard'; break;
-                default: initialPage = 'UnknownRolePage';
-            }
-            setCurrentPage(initialPage);
-            
-            await fetchAllDataForRole(userProfileDetails.role);
-
-        } else {
-            setAppMode('auth');
-            setCurrentUser(null);
-            setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
-            setIncidentReports([]); setMedications([]); setMedicationLogs([]);
-            setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
-            setParentsList([]); setMessages([]);
-            setCurrentPage('');
-        }
-        setAppIsLoading(false);
-    }, [fetchAllDataForRole, fetchUserProfile]);
-
+    // --- Centralized Data Loading Effect ---
     useEffect(() => {
+        const fetchData = async (dataType: string, setDataCallback: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
+            setLoadingData(prev => ({...prev, [dataType]: true}));
+            try {
+              const { data, error } = await query;
+              if (error) throw error;
+              setDataCallback(data || []);
+            } catch (e: any) { 
+                showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); 
+                setDataCallback([]); 
+            } finally { 
+                setLoadingData(prev => ({...prev, [dataType]: false})); 
+            }
+        };
+
+        const fetchAllDataForRole = async (role: string) => {
+            try {
+                const promises = [
+                    fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
+                    fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
+                    fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+                    fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
+                    fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
+                ];
+        
+                if (['admin', 'teacher', 'assistant'].includes(role)) {
+                    promises.push(fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true })));
+                    promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+                } else if (role === 'parent') {
+                    promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+                    promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+                }
+                
+                if (role === 'admin') {
+                    promises.push(fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false })));
+                    promises.push(fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false })));
+                    promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+                    promises.push(fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true })));
+                    promises.push(fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true })));
+                }
+        
+                await Promise.all(promises);
+            } catch (e: any) {
+                showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
+            }
+        };
+
+        const fetchUserProfile = async (user: User) => {
+            if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
+            try {
+                const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
+                if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
+                if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
+
+                const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
+                if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
+                if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
+
+                return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
+            } catch (e) {
+                console.error("Exception fetching user profile:", e);
+                return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
+            }
+        };
+        
+        const processSessionChange = async (sessionData: Session | null) => {
+            setAppIsLoading(true);
+            setSession(sessionData);
+
+            if (sessionData?.user) {
+                const userProfileDetails = await fetchUserProfile(sessionData.user);
+                setCurrentUser({ ...sessionData.user, ...userProfileDetails } as CurrentUser);
+                setAppMode(userProfileDetails.role);
+
+                let initialPage = '';
+                switch (userProfileDetails.role) {
+                    case 'admin': initialPage = 'AdminDashboard'; break;
+                    case 'teacher': initialPage = 'TeacherDashboard'; break;
+                    case 'assistant': initialPage = 'AssistantDashboard'; break;
+                    case 'parent': initialPage = 'ParentDashboard'; break;
+                    default: initialPage = 'UnknownRolePage';
+                }
+                setCurrentPage(initialPage);
+                
+                await fetchAllDataForRole(userProfileDetails.role);
+
+            } else {
+                setAppMode('auth');
+                setCurrentUser(null);
+                setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
+                setIncidentReports([]); setMedications([]); setMedicationLogs([]);
+                setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
+                setParentsList([]); setMessages([]);
+                setCurrentPage('');
+            }
+            setAppIsLoading(false);
+        };
+
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
             processSessionChange(initialSession);
         });
@@ -246,7 +251,18 @@ const App = () => {
         });
 
         return () => { subscription?.unsubscribe(); };
-    }, [processSessionChange]);
+    }, [showAlert]);
+    
+    // Generic fetchData function used by CRUD operations below
+    const fetchData = useCallback(async (dataType: string, setDataCallback: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
+        setLoadingData(prev => ({...prev, [dataType]: true}));
+        try {
+          const { data, error } = await query;
+          if (error) throw error;
+          setDataCallback(data || []);
+        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); setDataCallback([]); }
+        finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
+    }, [showAlert]);
     
     // --- ALL CRUD OPERATIONS ---
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'child_parents'>, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
@@ -881,5 +897,7 @@ const App = () => {
 };
 
 export default App;
+
+    
 
     
