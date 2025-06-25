@@ -138,13 +138,13 @@ const App = () => {
     const [waitlistEntryToEdit, setWaitlistEntryToEdit] = useState<WaitlistEntry | null>(null);
     const [showCreateAnnouncementModal, setShowCreateAnnouncementModal] = useState(false);
 
-    const showAlert = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    const showAlert = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
         toast({
             title: type.charAt(0).toUpperCase() + type.slice(1),
             description: message,
             variant: type === 'error' ? 'destructive' : 'default',
         });
-    };
+    }, [toast]);
 
     // Auth useEffect
     useEffect(() => {
