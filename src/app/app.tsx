@@ -213,7 +213,7 @@ const App = () => {
           setDataCallback(data || []);
         } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); setDataCallback([]); }
         finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
-      }, [session, toast]);
+      }, [session, showAlert]);
 
     // Data fetching useEffect
     useEffect(() => {
@@ -245,23 +245,40 @@ const App = () => {
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at'>) => {
         if (!childFormData.primary_parent_id) { showAlert("Primary Parent is required.", "error"); return; }
         if (childFormData.current_room_id === '') childFormData.current_room_id = null;
-        try { const { error } = await supabase.from('children').insert([childFormData]); if (error) throw error; showAlert('Child added successfully!'); setShowAddChildModal(false);
+        try { 
+            const { error } = await supabase.from('children').insert([childFormData]); 
+            if (error) throw error; 
+            showAlert('Child added successfully!'); 
+            setShowAddChildModal(false);
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
-      }, [showAlert]);
+      }, [showAlert, fetchData]);
     
     const handleOpenEditChildModal = useCallback((child: Child) => { setChildToEdit(child); setShowEditChildModal(true); }, []);
     
     const updateChildInSupabase = useCallback(async (updatedChildData: Child) => {
         if (!childToEdit?.id) return;
-        try { const {id, ...dataToUpdate} = updatedChildData; if (dataToUpdate.current_room_id === '') dataToUpdate.current_room_id = null; const {error}=await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); if(error) throw error; showAlert('Child updated!'); setShowEditChildModal(false); setChildToEdit(null);
+        try { 
+            const {id, ...dataToUpdate} = updatedChildData; 
+            if (dataToUpdate.current_room_id === '') dataToUpdate.current_room_id = null; 
+            const {error}=await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); 
+            if(error) throw error; 
+            showAlert('Child updated!'); 
+            setShowEditChildModal(false); 
+            setChildToEdit(null);
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
         } catch(e: any){ showAlert(`Update child error: ${e.message}`,'error'); }
-    }, [showAlert, childToEdit]);
+    }, [showAlert, childToEdit, fetchData]);
     
     const deleteChildFromSupabase = useCallback(async (childId: string) => { 
         if (!window.confirm("Are you sure you want to delete this child? This action cannot be undone.")) return; 
-        try {const {error}=await supabase.from('children').delete().eq('id', childId); if(error) throw error; showAlert('Child deleted!');
+        try {
+            const {error}=await supabase.from('children').delete().eq('id', childId); 
+            if(error) throw error; 
+            showAlert('Child deleted!');
+            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, parents!primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id');
         }catch(e: any){showAlert(`Delete child error: ${e.message}`,'error');}
-    }, [showAlert]);
+    }, [showAlert, fetchData]);
 
     const toggleChildCheckInStatus = useCallback(async (childId: string) => { 
         const child = children.find(c=>c.id===childId); 
@@ -286,9 +303,11 @@ const App = () => {
             dataToInsert.user_id = dataToInsert.email === currentUser?.email ? currentUser.id : null;
             const {error}=await supabase.from('staff').insert([dataToInsert]);
             if(error) throw error;
-            showAlert('Staff added!'); setShowAddStaffModal(false);
+            showAlert('Staff added!'); 
+            setShowAddStaffModal(false);
+            fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
         } catch(e: any){ showAlert(`Add staff error: ${e.message}`,'error'); }
-    }, [showAlert, currentUser]);
+    }, [showAlert, currentUser, fetchData]);
 
     const handleOpenEditStaffModal = useCallback((staffMember: Staff) => { setStaffToEdit(staffMember); setShowEditStaffModal(true); }, []);
     
@@ -301,41 +320,69 @@ const App = () => {
             else if (dataToUpdate.main_room_id === '' || dataToUpdate.main_room_id === undefined) dataToUpdate.main_room_id = null;
             const { error } = await supabase.from('staff').update(dataToUpdate).eq('id', staffToEdit.id);
             if (error) throw error;
-            showAlert('Staff member updated successfully!'); setShowEditStaffModal(false); setStaffToEdit(null);
+            showAlert('Staff member updated successfully!'); 
+            setShowEditStaffModal(false); 
+            setStaffToEdit(null);
+            fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
         } catch (e: any) { showAlert(`Error updating staff member: ${e.message}`, 'error'); }
-    }, [showAlert, staffToEdit]);
+    }, [showAlert, staffToEdit, fetchData]);
 
     const deleteStaffFromSupabase = useCallback(async (staffId: string) => { 
         if (!window.confirm("Are you sure you want to delete this staff member?")) return; 
-        try { const { error } = await supabase.from('staff').delete().eq('id', staffId); if (error) throw error; showAlert('Staff member deleted!'); 
+        try { 
+            const { error } = await supabase.from('staff').delete().eq('id', staffId); 
+            if (error) throw error; 
+            showAlert('Staff member deleted!'); 
+            fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
         } catch (e: any) { showAlert(`Delete staff error: ${e.message}`, 'error');}
-    }, [showAlert]);
+    }, [showAlert, fetchData]);
     
     const addRoomToSupabase = useCallback(async (roomData: Omit<Room, 'id' | 'created_at'>) => { 
-        try {const {error} = await supabase.from('rooms').insert([roomData]); if(error) throw error; showAlert('Room added!'); setShowAddRoomModal(false);
+        try {
+            const {error} = await supabase.from('rooms').insert([roomData]); 
+            if(error) throw error; 
+            showAlert('Room added!'); 
+            setShowAddRoomModal(false);
+            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
         } catch(e: any){showAlert(`Add room error: ${e.message}`,'error');}
-    }, [showAlert]);
+    }, [showAlert, fetchData]);
 
     const handleOpenEditRoomModal = useCallback((room: Room) => { setRoomToEdit(room); setShowEditRoomModal(true); }, []);
 
     const updateRoomInSupabase = useCallback(async (updatedRoomData: Room) => { 
         if (!roomToEdit?.id) return; 
-        try { const { id, ...dataToUpdate } = updatedRoomData; const { error } = await supabase.from('rooms').update(dataToUpdate).eq('id', roomToEdit.id); if (error) throw error; showAlert('Room updated!'); setShowEditRoomModal(false); setRoomToEdit(null); 
+        try { 
+            const { id, ...dataToUpdate } = updatedRoomData; 
+            const { error } = await supabase.from('rooms').update(dataToUpdate).eq('id', roomToEdit.id); 
+            if (error) throw error; 
+            showAlert('Room updated!'); 
+            setShowEditRoomModal(false); 
+            setRoomToEdit(null); 
+            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
         } catch (e: any) { showAlert(`Update room error: ${e.message}`, 'error');}
-    }, [showAlert, roomToEdit]);
+    }, [showAlert, roomToEdit, fetchData]);
     
     const deleteRoomFromSupabase = useCallback(async (roomId: string) => { 
         if (!window.confirm("Are you sure you want to delete this room?")) return; 
-        try { const { error } = await supabase.from('rooms').delete().eq('id', roomId); if (error) throw error; showAlert('Room deleted!'); 
+        try { 
+            const { error } = await supabase.from('rooms').delete().eq('id', roomId); 
+            if (error) throw error; 
+            showAlert('Room deleted!'); 
+            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
         } catch (e: any) { showAlert(`Delete room error: ${e.message}`, 'error');}
-    }, [showAlert]);
+    }, [showAlert, fetchData]);
 
     const addDailyReportToSupabase = useCallback(async (reportData: Omit<DailyReport, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot create report: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...reportData, staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('daily_reports').insert([dataWithStaffId]); if (error) throw error; showAlert('Daily report added!'); setShowCreateReportModal(false);
+        try { 
+            const { error } = await supabase.from('daily_reports').insert([dataWithStaffId]); 
+            if (error) throw error; 
+            showAlert('Daily report added!'); 
+            setShowCreateReportModal(false);
+            fetchData('dailyReports', setDailyReports, 'daily_reports', { column: 'report_date', ascending: false });
         } catch (e: any) { showAlert(`Error adding daily report: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser]);
+    }, [showAlert, currentUser, fetchData]);
     
     const handleViewReportDetails = useCallback((report: DailyReport) => { setReportToView(report); setShowViewDailyReportModal(true); }, []);
     
@@ -359,9 +406,14 @@ const App = () => {
     const addIncidentReportToSupabase = useCallback(async (incidentData: Omit<IncidentReport, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot log incident: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...incidentData, reported_by_staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('incident_reports').insert([dataWithStaffId]); if (error) throw error; showAlert('Incident report logged!'); setShowLogIncidentModal(false);
+        try { 
+            const { error } = await supabase.from('incident_reports').insert([dataWithStaffId]); 
+            if (error) throw error; 
+            showAlert('Incident report logged!'); 
+            setShowLogIncidentModal(false);
+            fetchData('incidentReports', setIncidentReports, 'incident_reports', { column: 'incident_datetime', ascending: false });
         } catch (e: any) { showAlert(`Log incident error: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser]);
+    }, [showAlert, currentUser, fetchData]);
     
     const handleViewIncidentDetails = useCallback((incident: IncidentReport) => { setIncidentToView(incident); setShowViewIncidentModal(true); }, []);
     
@@ -370,16 +422,59 @@ const App = () => {
     const handleOpenEditMedicationModal = useCallback((medication: Medication) => { setMedicationToEdit(medication); setShowEditMedicationModal(true); }, []);
     const handleOpenLogAdministrationModal = useCallback((medication: Medication) => { setMedicationToLog(medication); setShowLogMedicationModal(true); }, []);
 
-    const addMedicationToSupabase = useCallback(async (medData: Omit<Medication, 'id' | 'created_at'>) => { try { const { error } = await supabase.from('medications').insert([medData]); if (error) throw error; showAlert('Medication added!'); setShowAddMedicationModal(false); } catch (e: any) { showAlert(`Add medication error: ${e.message}`, 'error'); } }, [showAlert]);
-    const updateMedicationInSupabase = useCallback(async (medData: Medication) => { if (!medData.id) return; try { const {id, ...dataToUpdate} = medData; const { error } = await supabase.from('medications').update(dataToUpdate).eq('id', id); if (error) throw error; showAlert('Medication updated!'); setShowEditMedicationModal(false); setMedicationToEdit(null); } catch (e: any) { showAlert(`Update medication error: ${e.message}`, 'error');} }, [showAlert]);
-    const deleteMedicationFromSupabase = useCallback(async (medicationId: string) => { if (!window.confirm("Delete medication?")) return; try { const { error } = await supabase.from('medications').delete().eq('id', medicationId); if (error) throw error; showAlert('Medication deleted!'); } catch (e: any) { showAlert(`Delete medication error: ${e.message}`, 'error'); } }, [showAlert]);
+    const addMedicationToSupabase = useCallback(async (medData: Omit<Medication, 'id' | 'created_at'>) => { 
+        try { 
+            const { error } = await supabase.from('medications').insert([medData]); 
+            if (error) throw error; 
+            showAlert('Medication added!'); 
+            setShowAddMedicationModal(false);
+            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Add medication error: ${e.message}`, 'error'); 
+        } 
+    }, [showAlert, fetchData]);
+
+    const updateMedicationInSupabase = useCallback(async (medData: Medication) => { 
+        if (!medData.id) return; 
+        try { 
+            const {id, ...dataToUpdate} = medData; 
+            const { error } = await supabase.from('medications').update(dataToUpdate).eq('id', id); 
+            if (error) throw error; 
+            showAlert('Medication updated!'); 
+            setShowEditMedicationModal(false); 
+            setMedicationToEdit(null);
+            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Update medication error: ${e.message}`, 'error');
+        } 
+    }, [showAlert, fetchData]);
+
+    const deleteMedicationFromSupabase = useCallback(async (medicationId: string) => { 
+        if (!window.confirm("Delete medication?")) return; 
+        try { 
+            const { error } = await supabase.from('medications').delete().eq('id', medicationId); 
+            if (error) throw error; 
+            showAlert('Medication deleted!'); 
+            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Delete medication error: ${e.message}`, 'error'); 
+        } 
+    }, [showAlert, fetchData]);
     
     const addMedicationLogToSupabase = useCallback(async (logData: Omit<MedicationLog, 'id' | 'created_at' | 'administered_by_staff_id'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot log medication: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...logData, administered_by_staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('medication_logs').insert([dataWithStaffId]); if (error) throw error; showAlert('Medication administration logged!'); setShowLogMedicationModal(false); setMedicationToLog(null);
-        } catch (e: any) { showAlert(`Log med admin error: ${e.message}`, 'error');}
-    }, [showAlert, currentUser]);
+        try { 
+            const { error } = await supabase.from('medication_logs').insert([dataWithStaffId]); 
+            if (error) throw error; 
+            showAlert('Medication administration logged!'); 
+            setShowLogMedicationModal(false); 
+            setMedicationToLog(null);
+            fetchData('medicationLogs', setMedicationLogs, 'medication_logs', { column: 'administered_at', ascending: false });
+        } catch (e: any) { 
+            showAlert(`Log med admin error: ${e.message}`, 'error');
+        }
+    }, [showAlert, currentUser, fetchData]);
     
     const handleNavigateToCreateAnnouncement = useCallback(() => { setAnnouncementToEdit(null); setCurrentPage('CreateAnnouncementPage'); }, [setCurrentPage]);
     const handleEditAnnouncement = useCallback((announcement: Announcement) => { setAnnouncementToEdit(announcement); setCurrentPage('CreateAnnouncementPage'); }, [setCurrentPage]);
@@ -387,28 +482,60 @@ const App = () => {
     const addAnnouncementToSupabase = useCallback(async (announcementData: Omit<Announcement, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot create announcement: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...announcementData, author_staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('announcements').insert([dataWithStaffId]); if (error) throw error; showAlert('Announcement created!'); setCurrentPage('AdminAnnouncements');
-        } catch (e: any) { showAlert(`Create announcement error: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser, setCurrentPage]);
+        try { 
+            const { error } = await supabase.from('announcements').insert([dataWithStaffId]); 
+            if (error) throw error; 
+            showAlert('Announcement created!'); 
+            setCurrentPage('AdminAnnouncements');
+            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
+        } catch (e: any) { 
+            showAlert(`Create announcement error: ${e.message}`, 'error'); 
+        }
+    }, [showAlert, currentUser, setCurrentPage, fetchData]);
     
     const updateAnnouncementInSupabase = useCallback(async (announcementData: Announcement) => {
         if (!announcementData.id || !currentUser?.staff_id) return;
         const {id, ...dataToUpdate} = announcementData;
         const dataWithStaffId = { ...dataToUpdate, author_staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('announcements').update(dataWithStaffId).eq('id', id); if (error) throw error; showAlert('Announcement updated!'); setCurrentPage('AdminAnnouncements'); setAnnouncementToEdit(null);
-        } catch (e: any) { showAlert(`Update announcement error: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser, setCurrentPage]);
+        try { 
+            const { error } = await supabase.from('announcements').update(dataWithStaffId).eq('id', id); 
+            if (error) throw error; 
+            showAlert('Announcement updated!'); 
+            setCurrentPage('AdminAnnouncements'); 
+            setAnnouncementToEdit(null);
+            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
+        } catch (e: any) { 
+            showAlert(`Update announcement error: ${e.message}`, 'error'); 
+        }
+    }, [showAlert, currentUser, setCurrentPage, fetchData]);
     
-    const deleteAnnouncementFromSupabase = useCallback(async (announcementId: string) => { if (!window.confirm("Delete announcement?")) return; try { const { error } = await supabase.from('announcements').delete().eq('id', announcementId); if (error) throw error; showAlert('Announcement deleted!'); } catch (e: any) { showAlert(`Delete announcement error: ${e.message}`, 'error'); } }, [showAlert]);
+    const deleteAnnouncementFromSupabase = useCallback(async (announcementId: string) => { 
+        if (!window.confirm("Delete announcement?")) return; 
+        try { 
+            const { error } = await supabase.from('announcements').delete().eq('id', announcementId); 
+            if (error) throw error; 
+            showAlert('Announcement deleted!'); 
+            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
+        } catch (e: any) { 
+            showAlert(`Delete announcement error: ${e.message}`, 'error'); 
+        } 
+    }, [showAlert, fetchData]);
     
     const addInvoiceToSupabase = useCallback(async (invoiceData: Omit<Invoice, 'id' | 'created_at'>) => {
         let dataWithCreator: any = { ...invoiceData };
         if (currentUser && ['admin', 'teacher', 'assistant'].includes(currentUser.role) && currentUser.staff_id) {
             dataWithCreator.created_by_staff_id = currentUser.staff_id;
         }
-        try { const { error } = await supabase.from('invoices').insert([dataWithCreator]); if (error) throw error; showAlert('Invoice created!'); setShowCreateInvoiceModal(false);
-        } catch (e: any) { showAlert(`Create invoice error: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser]);
+        try { 
+            const { error } = await supabase.from('invoices').insert([dataWithCreator]); 
+            if (error) throw error; 
+            showAlert('Invoice created!'); 
+            setShowCreateInvoiceModal(false);
+            fetchData('invoices', setInvoices, 'invoices', { column: 'invoice_date', ascending: false });
+        } catch (e: any) { 
+            showAlert(`Create invoice error: ${e.message}`, 'error'); 
+        }
+    }, [showAlert, currentUser, fetchData]);
 
     const handleViewInvoiceDetails = useCallback(async (invoice: Invoice) => {
         setInvoiceToView(invoice);
@@ -431,9 +558,37 @@ const App = () => {
     const handleOpenAddWaitlistModal = useCallback(() => { setWaitlistEntryToEdit(null); setShowAddWaitlistModal(true); }, []);
     const handleEditWaitlistEntry = useCallback((entry: WaitlistEntry) => { setWaitlistEntryToEdit(entry); setShowAddWaitlistModal(true); }, []);
     
-    const addOrUpdateWaitlistEntryToSupabase = useCallback(async (entryData: WaitlistEntry, isEditing: boolean) => { try { let error; if (isEditing) { const {id, ...dataToUpdate} = entryData; ({ error } = await supabase.from('waitlist_entries').update(dataToUpdate).eq('id', id)); } else { const {id, ...dataToInsert} = entryData; ({ error } = await supabase.from('waitlist_entries').insert([dataToInsert])); } if (error) throw error; showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`); setShowAddWaitlistModal(false); setWaitlistEntryToEdit(null); } catch (e: any) { showAlert(`Waitlist error: ${e.message}`, 'error'); } }, [showAlert]);
+    const addOrUpdateWaitlistEntryToSupabase = useCallback(async (entryData: WaitlistEntry, isEditing: boolean) => { 
+        try { 
+            let error; 
+            if (isEditing) { 
+                const {id, ...dataToUpdate} = entryData; 
+                ({ error } = await supabase.from('waitlist_entries').update(dataToUpdate).eq('id', id)); 
+            } else { 
+                const {id, ...dataToInsert} = entryData; 
+                ({ error } = await supabase.from('waitlist_entries').insert([dataToInsert])); 
+            } 
+            if (error) throw error; 
+            showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`); 
+            setShowAddWaitlistModal(false); 
+            setWaitlistEntryToEdit(null);
+            fetchData('waitlistEntries', setWaitlistEntries, 'waitlist_entries', { column: 'created_at', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Waitlist error: ${e.message}`, 'error'); 
+        } 
+    }, [showAlert, fetchData]);
     
-    const deleteWaitlistEntryFromSupabase = useCallback(async (entryId: string) => { if (!window.confirm("Remove from waitlist?")) return; try { const { error } = await supabase.from('waitlist_entries').delete().eq('id', entryId); if (error) throw error; showAlert('Waitlist entry removed!'); } catch (e: any) { showAlert(`Delete waitlist entry error: ${e.message}`, 'error'); } }, [showAlert]);
+    const deleteWaitlistEntryFromSupabase = useCallback(async (entryId: string) => { 
+        if (!window.confirm("Remove from waitlist?")) return; 
+        try { 
+            const { error } = await supabase.from('waitlist_entries').delete().eq('id', entryId); 
+            if (error) throw error; 
+            showAlert('Waitlist entry removed!'); 
+            fetchData('waitlistEntries', setWaitlistEntries, 'waitlist_entries', { column: 'created_at', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Delete waitlist entry error: ${e.message}`, 'error'); 
+        } 
+    }, [showAlert, fetchData]);
     
     const addParentToSupabase = useCallback(async (parentData: Omit<Parent, 'id' | 'created_at'>) => {
         try {
@@ -441,17 +596,28 @@ const App = () => {
             if (existingParent) { showAlert(`Parent with email ${parentData.email} already exists.`, 'warning'); return; }
             const { error } = await supabase.from('parents').insert([parentData]);
             if (error) throw error;
-            showAlert('Parent added successfully!'); setShowAddParentModal(false);
+            showAlert('Parent added successfully!'); 
+            setShowAddParentModal(false);
+            fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
         } catch (e: any) { showAlert(`Error adding parent: ${e.message}`, 'error'); }
-    }, [showAlert]);
+    }, [showAlert, fetchData]);
     
     const handleOpenEditParentModal = useCallback((parent: Parent) => { setParentToEdit(parent); setShowEditParentModal(true); }, []);
 
     const updateParentInSupabase = useCallback(async (updatedParentData: Parent) => {
         if (!parentToEdit?.id) return;
-        try { const { id, ...dataToUpdate } = updatedParentData; const { error } = await supabase.from('parents').update(dataToUpdate).eq('id', id); if (error) throw error; showAlert('Parent details updated!'); setShowEditParentModal(false); setParentToEdit(null);
-        } catch (e: any) { showAlert(`Error updating parent: ${e.message}`, 'error'); }
-    }, [showAlert, parentToEdit]);
+        try { 
+            const { id, ...dataToUpdate } = updatedParentData; 
+            const { error } = await supabase.from('parents').update(dataToUpdate).eq('id', id); 
+            if (error) throw error; 
+            showAlert('Parent details updated!'); 
+            setShowEditParentModal(false); 
+            setParentToEdit(null);
+            fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Error updating parent: ${e.message}`, 'error'); 
+        }
+    }, [showAlert, parentToEdit, fetchData]);
     
     const deleteParentFromSupabase = useCallback(async (parentId: string) => {
         if (!window.confirm("Delete parent? This may affect linked children.")) return;
@@ -460,9 +626,13 @@ const App = () => {
             if (childrenCheckError) { showAlert(`Error checking linked children: ${childrenCheckError.message}`, 'error'); return; }
             if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign children first.`, 'error'); return; }
             const { error } = await supabase.from('parents').delete().eq('id', parentId);
-            if (error) throw error; showAlert('Parent deleted successfully!');
-        } catch (e: any) { showAlert(`Error deleting parent: ${e.message}`, 'error'); }
-    }, [showAlert]);
+            if (error) throw error; 
+            showAlert('Parent deleted successfully!');
+            fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
+        } catch (e: any) { 
+            showAlert(`Error deleting parent: ${e.message}`, 'error'); 
+        }
+    }, [showAlert, fetchData]);
     
     // Auth Handlers
     const handleSignUp = async (email: string, password: string) => {
@@ -541,14 +711,14 @@ const App = () => {
                         const parentChildrenIds = children.filter(c => c.primary_parent_id === currentUser.profileId).map(c => c.id);
                         const filteredDailyReports = dailyReports.filter(report => parentChildrenIds.includes(report.child_id));
                         const relevantChildren = children.filter(c => parentChildrenIds.includes(c.id));
-                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={relevantChildren} staff={staff} loading={loadingData.dailyReports} onNavigateToCreateReport={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
+                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={relevantChildren} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
                     }
                     case 'ParentInvoices': {
                         if (!currentUser) return <Loading />;
                         const parentChildrenIdsForInvoices = children.filter(c => c.primary_parent_id === currentUser.profileId).map(c => c.id);
                         const filteredInvoices = invoices.filter(inv => parentChildrenIdsForInvoices.includes(inv.child_id));
                         const relevantChildrenForInvoices = children.filter(c => parentChildrenIdsForInvoices.includes(c.id));
-                        return <AdminBillingPage invoices={filteredInvoices} children={relevantChildrenForInvoices} loading={loadingData.invoices} onNavigateToCreateInvoice={null} onViewInvoiceDetails={handleViewInvoiceDetails} />;
+                        return <AdminBillingPage invoices={filteredInvoices} children={relevantChildrenForInvoices} loading={loadingData.invoices} onOpenCreateInvoiceModal={null} onViewInvoiceDetails={handleViewInvoiceDetails} />;
                     }
                     case 'AdminGallery': return <AdminGalleryPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || loadingData.children || loadingData.staff} currentUser={currentUser} />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={null} onEditAnnouncement={null} onDeleteAnnouncement={null} />;
