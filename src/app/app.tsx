@@ -217,9 +217,9 @@ const App = () => {
                         dataPromises.staff = fetchData('staff', supabase.from('staff').select('*').order('name', { ascending: true }));
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         if (role === 'admin') {
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false }));
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
                         } else if (userDetails?.staff_id) {
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
                         }
                     } else if (role === 'parent') {
                         // Parents might see reports and invoices for children they are primary OR secondary parent of
@@ -295,7 +295,6 @@ const App = () => {
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'primary_parent'>) => {
         if (!childFormData.primary_parent_id) { showAlert("A primary parent must be selected.", "error"); return; }
         if (childFormData.current_room_id === '') childFormData.current_room_id = null;
-        if (childFormData.parent_2_id === '') childFormData.parent_2_id = null;
         
         try { 
             const { data: newChild, error: childError } = await supabase.from('children').insert([childFormData]).select().single();
@@ -317,9 +316,6 @@ const App = () => {
             const { id, primary_parent, ...dataToUpdate } = updatedChildData;
             if ('current_room_id' in dataToUpdate && dataToUpdate.current_room_id === '') {
                 (dataToUpdate as any).current_room_id = null;
-            }
-            if ('parent_2_id' in dataToUpdate && dataToUpdate.parent_2_id === '') {
-                (dataToUpdate as any).parent_2_id = null;
             }
             const { error: childUpdateError } = await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); 
             if (childUpdateError) throw childUpdateError; 
@@ -686,7 +682,7 @@ const App = () => {
     const deleteParentFromSupabase = useCallback(async (parentId: string) => {
         if (!window.confirm("Delete parent? This may affect linked children.")) return;
         try {
-            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('children').select('id').or(`primary_parent_id.eq.${parentId},parent_2_id.eq.${parentId}`);
+            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('children').select('id').or(`primary_parent_id.eq.${parentId}`);
             if (childrenCheckError) { showAlert(`Error checking linked children: ${childrenCheckError.message}`, 'error'); return; }
             if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign parent(s) first.`, 'error'); return; }
             const { error } = await supabase.from('parents').delete().eq('id', parentId);
@@ -729,13 +725,13 @@ const App = () => {
                 staff_id: currentUser.staff_id,
                 status: 'pending' as const,
             };
-            const { error } = await supabase.from('staff_leave_requests').insert([dataToInsert]);
+            const { error } = await supabase.from('leave_requests').insert([dataToInsert]);
             if (error) throw error;
             showAlert('Leave request submitted successfully!');
             setShowRequestLeaveModal(false);
             const query = currentUser.role === 'admin'
-                ? supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false })
-                : supabase.from('staff_leave_requests').select('*').eq('staff_id', currentUser.staff_id).order('start_date', { ascending: false });
+                ? supabase.from('leave_requests').select('*').order('start_date', { ascending: false })
+                : supabase.from('leave_requests').select('*').eq('staff_id', currentUser.staff_id).order('start_date', { ascending: false });
             fetchData('staffLeaveRequests', setStaffLeaveRequests, query as any);
         } catch (e: any) {
             showAlert(`Error submitting leave request: ${e.message}`, 'error');
@@ -748,10 +744,10 @@ const App = () => {
             return;
         }
         try {
-            const { error } = await supabase.from('staff_leave_requests').update({ status, reviewed_by_admin_id: currentUser.staff_id }).eq('id', requestId);
+            const { error } = await supabase.from('leave_requests').update({ status, reviewed_by_admin_id: currentUser.staff_id }).eq('id', requestId);
             if (error) throw error;
             showAlert(`Request has been ${status}.`);
-            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false }));
+            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
         } catch (e: any) {
             showAlert(`Error updating request: ${e.message}`, 'error');
         }
@@ -838,7 +834,7 @@ const App = () => {
             case 'parent':
                 const getParentChildren = () => {
                     if (!currentUser || !currentUser.profileId || !Array.isArray(children)) return [];
-                    return children.filter(c => c.primary_parent_id === currentUser.profileId || c.parent_2_id === currentUser.profileId);
+                    return children.filter(c => c.primary_parent_id === currentUser.profileId);
                 };
                 const parentChildren = getParentChildren();
                 const parentChildrenIds = parentChildren.map(c => c.id);
