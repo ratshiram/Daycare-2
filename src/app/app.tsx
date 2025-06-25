@@ -64,7 +64,7 @@ export const useAppState = () => {
 const App = () => {
     const { toast } = useToast();
     const [session, setSession] = useState<Session | null>(null);
-    const [loadingAuth, setLoadingAuth] = useState(true);
+    const [appIsLoading, setAppIsLoading] = useState(true);
     const [authActionLoading, setAuthActionLoading] = useState(false);
     const [appMode, setAppMode] = useState('auth');
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -98,10 +98,7 @@ const App = () => {
     const [parentsList, setParentsList] = useState<Parent[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
 
-    const [loadingData, setLoadingData] = useState({
-        children: false, staff: false, rooms: false, dailyReports: false, incidentReports: false,
-        medications: false, medicationLogs: false, announcements: false, invoices: false, waitlistEntries: false, parentsList: false, parentForInvoice: false, messages: false,
-    });
+    const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
 
     // Modal states & Edit states
     const [showAddChildModal, setShowAddChildModal] = useState(false);
@@ -145,8 +142,46 @@ const App = () => {
             variant: type === 'error' ? 'destructive' : 'default',
         });
     }, [toast]);
+    
+    // Generic fetchData function
+    const fetchData = useCallback(async (dataType: string, setDataCallback: Function, query: Promise<any>) => {
+        setLoadingData(prev => ({...prev, [dataType]: true}));
+        try {
+          const { data, error } = await query;
+          if (error) throw error;
+          setDataCallback(data || []);
+        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); setDataCallback([]); }
+        finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
+    }, [showAlert]);
+    
+    const fetchAllDataForRole = useCallback(async (role: string) => {
+        const promises = [
+            fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
+            fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+            fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
+            fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
+        ];
 
-    // Auth useEffect
+        if (['admin', 'teacher', 'assistant'].includes(role)) {
+            promises.push(fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true })));
+            promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+        } else if (role === 'parent') {
+            promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+            promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+        }
+        
+        if (role === 'admin') {
+            promises.push(fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false })));
+            promises.push(fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false })));
+            promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+            promises.push(fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true })));
+            promises.push(fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true })));
+        }
+
+        await Promise.all(promises);
+    }, [fetchData]);
+
     useEffect(() => {
         const fetchUserProfile = async (user: User) => {
             if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
@@ -159,7 +194,6 @@ const App = () => {
                 if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
                 if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
 
-                console.warn(`User ${user.email} (ID: ${user.id}) has no linked profile.`);
                 return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
             } catch (e) {
                 console.error("Exception fetching user profile:", e);
@@ -167,9 +201,10 @@ const App = () => {
             }
         };
 
-        const processSessionChange = async (sessionData: Session | null, eventType: string | null = null) => {
-            setLoadingAuth(true);
+        const processSessionChange = async (sessionData: Session | null) => {
+            setAppIsLoading(true);
             setSession(sessionData);
+
             if (sessionData?.user) {
                 const userProfileDetails = await fetchUserProfile(sessionData.user);
                 setCurrentUser({ ...sessionData.user, ...userProfileDetails } as CurrentUser);
@@ -184,6 +219,9 @@ const App = () => {
                     default: initialPage = 'UnknownRolePage';
                 }
                 setCurrentPage(initialPage);
+                
+                await fetchAllDataForRole(userProfileDetails.role);
+
             } else {
                 setAppMode('auth');
                 setCurrentUser(null);
@@ -193,61 +231,19 @@ const App = () => {
                 setParentsList([]); setMessages([]);
                 setCurrentPage('');
             }
-            setLoadingAuth(false);
+            setAppIsLoading(false);
         };
 
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-            processSessionChange(initialSession, 'INITIAL_SESSION');
-        }).catch((error) => {
-            console.error("Error getting initial session:", error);
-            processSessionChange(null);
+            processSessionChange(initialSession);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sessionData) => {
-            processSessionChange(sessionData, _event);
+            processSessionChange(sessionData);
         });
 
         return () => { subscription?.unsubscribe(); };
-    }, [showAlert]);
-
-    // Generic fetchData function
-    const fetchData = useCallback(async (dataType: string, setDataCallback: Function, tableName: string, order = { column: 'created_at', ascending: false }, select = '*') => {
-        if (!session || !supabase) { setDataCallback([]); setLoadingData(prev => ({...prev, [dataType]: false})); return; }
-        setLoadingData(prev => ({...prev, [dataType]: true}));
-        try {
-          const { data, error } = await supabase.from(tableName).select(select).order(order.column, { ascending: order.ascending });
-          if (error) throw error;
-          setDataCallback(data || []);
-        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); setDataCallback([]); }
-        finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
-      }, [session, showAlert]);
-
-    // Data fetching useEffect
-    useEffect(() => {
-        if (session && appMode && appMode !== 'auth' && !['unknown', 'unknown_profile', 'no_parent_profile', 'exception_profile'].includes(appMode) ) {
-            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
-            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
-            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
-            fetchData('messages', setMessages, 'messages', { column: 'created_at', ascending: true });
-
-            if (['admin', 'teacher', 'assistant'].includes(appMode)) {
-                fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
-                fetchData('dailyReports', setDailyReports, 'daily_reports', { column: 'report_date', ascending: false });
-            } else if (appMode === 'parent') {
-                fetchData('dailyReports', setDailyReports, 'daily_reports', { column: 'report_date', ascending: false });
-                fetchData('invoices', setInvoices, 'invoices', { column: 'invoice_date', ascending: false });
-            }
-            
-            if (appMode === 'admin') {
-                fetchData('incidentReports', setIncidentReports, 'incident_reports', { column: 'incident_datetime', ascending: false });
-                fetchData('medicationLogs', setMedicationLogs, 'medication_logs', { column: 'administered_at', ascending: false });
-                fetchData('invoices', setInvoices, 'invoices', { column: 'invoice_date', ascending: false });
-                fetchData('waitlistEntries', setWaitlistEntries, 'waitlist_entries', { column: 'created_at', ascending: true });
-                fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
-            }
-        }
-    }, [session, appMode, fetchData]);
+    }, [showAlert, fetchAllDataForRole]);
     
     // --- ALL CRUD OPERATIONS ---
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'child_parents'>, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
@@ -262,14 +258,13 @@ const App = () => {
             const childParentLinks = parentsToLink.map(p => ({ child_id: newChild.id, parent_id: p.parent_id, is_primary: p.is_primary }));
             const { error: linkError } = await supabase.from('child_parents').insert(childParentLinks);
             if (linkError) {
-                // Attempt to clean up the orphaned child record
                 await supabase.from('children').delete().eq('id', newChild.id);
                 throw linkError;
             }
     
             showAlert('Child added successfully!'); 
             setShowAddChildModal(false);
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
     }, [showAlert, fetchData]);
     
@@ -298,7 +293,7 @@ const App = () => {
             showAlert('Child updated!'); 
             setShowEditChildModal(false); 
             setChildToEdit(null);
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch(e: any){ showAlert(`Update child error: ${e.message}`,'error'); }
     }, [showAlert, childToEdit, fetchData]);
     
@@ -308,7 +303,7 @@ const App = () => {
             const {error}=await supabase.from('children').delete().eq('id', childId); 
             if(error) throw error; 
             showAlert('Child deleted!');
-            fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Delete child error: ${e.message}`,'error');}
     }, [showAlert, fetchData]);
 
@@ -318,7 +313,7 @@ const App = () => {
         const now = new Date().toISOString(); 
         const wasCheckedIn = child.check_in_time && !child.check_out_time; 
         const updates = {check_in_time: wasCheckedIn ? child.check_in_time : now, check_out_time: wasCheckedIn ? now : null}; 
-        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, 'children', { column: 'name', ascending: true }, '*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id');
+        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Check-in/out error: ${e.message}`,'error');}
     }, [showAlert, children, fetchData]);
       
@@ -337,7 +332,7 @@ const App = () => {
             if(error) throw error;
             showAlert('Staff added!'); 
             setShowAddStaffModal(false);
-            fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
+            fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
         } catch(e: any){ showAlert(`Add staff error: ${e.message}`,'error'); }
     }, [showAlert, currentUser, fetchData]);
 
@@ -355,7 +350,7 @@ const App = () => {
             showAlert('Staff member updated successfully!'); 
             setShowEditStaffModal(false); 
             setStaffToEdit(null);
-            fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
+            fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Error updating staff member: ${e.message}`, 'error'); }
     }, [showAlert, staffToEdit, fetchData]);
 
@@ -365,7 +360,7 @@ const App = () => {
             const { error } = await supabase.from('staff').delete().eq('id', staffId); 
             if (error) throw error; 
             showAlert('Staff member deleted!'); 
-            fetchData('staff', setStaff, 'staff', { column: 'name', ascending: true });
+            fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Delete staff error: ${e.message}`, 'error');}
     }, [showAlert, fetchData]);
     
@@ -375,7 +370,7 @@ const App = () => {
             if(error) throw error; 
             showAlert('Room added!'); 
             setShowAddRoomModal(false);
-            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
+            fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
         } catch(e: any){showAlert(`Add room error: ${e.message}`,'error');}
     }, [showAlert, fetchData]);
 
@@ -390,7 +385,7 @@ const App = () => {
             showAlert('Room updated!'); 
             setShowEditRoomModal(false); 
             setRoomToEdit(null); 
-            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
+            fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Update room error: ${e.message}`, 'error');}
     }, [showAlert, roomToEdit, fetchData]);
     
@@ -400,7 +395,7 @@ const App = () => {
             const { error } = await supabase.from('rooms').delete().eq('id', roomId); 
             if (error) throw error; 
             showAlert('Room deleted!'); 
-            fetchData('rooms', setRooms, 'rooms', { column: 'name', ascending: true });
+            fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Delete room error: ${e.message}`, 'error');}
     }, [showAlert, fetchData]);
 
@@ -412,7 +407,7 @@ const App = () => {
             if (error) throw error; 
             showAlert('Daily report added!'); 
             setShowCreateReportModal(false);
-            fetchData('dailyReports', setDailyReports, 'daily_reports', { column: 'report_date', ascending: false });
+            fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
         } catch (e: any) { showAlert(`Error adding daily report: ${e.message}`, 'error'); }
     }, [showAlert, currentUser, fetchData]);
     
@@ -429,7 +424,7 @@ const App = () => {
             showAlert('Daily report updated successfully!');
             setShowCreateReportModal(false);
             setReportToEdit(null);
-            fetchData('dailyReports', setDailyReports, 'daily_reports', { column: 'report_date', ascending: false });
+            fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
         } catch (e: any) {
             showAlert(`Error updating daily report: ${e.message}`, 'error');
         }
@@ -443,7 +438,7 @@ const App = () => {
             if (error) throw error; 
             showAlert('Incident report logged!'); 
             setShowLogIncidentModal(false);
-            fetchData('incidentReports', setIncidentReports, 'incident_reports', { column: 'incident_datetime', ascending: false });
+            fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
         } catch (e: any) { showAlert(`Log incident error: ${e.message}`, 'error'); }
     }, [showAlert, currentUser, fetchData]);
     
@@ -460,7 +455,7 @@ const App = () => {
             if (error) throw error; 
             showAlert('Medication added!'); 
             setShowAddMedicationModal(false);
-            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
+            fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Add medication error: ${e.message}`, 'error'); 
         } 
@@ -475,7 +470,7 @@ const App = () => {
             showAlert('Medication updated!'); 
             setShowEditMedicationModal(false); 
             setMedicationToEdit(null);
-            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
+            fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Update medication error: ${e.message}`, 'error');
         } 
@@ -487,7 +482,7 @@ const App = () => {
             const { error } = await supabase.from('medications').delete().eq('id', medicationId); 
             if (error) throw error; 
             showAlert('Medication deleted!'); 
-            fetchData('medications', setMedications, 'medications', { column: 'medication_name', ascending: true });
+            fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Delete medication error: ${e.message}`, 'error'); 
         } 
@@ -502,7 +497,7 @@ const App = () => {
             showAlert('Medication administration logged!'); 
             setShowLogMedicationModal(false); 
             setMedicationToLog(null);
-            fetchData('medicationLogs', setMedicationLogs, 'medication_logs', { column: 'administered_at', ascending: false });
+            fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
         } catch (e: any) { 
             showAlert(`Log med admin error: ${e.message}`, 'error');
         }
@@ -516,7 +511,7 @@ const App = () => {
             if (error) throw error; 
             showAlert('Announcement created!'); 
             setShowCreateAnnouncementModal(false);
-            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
+            fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
         } catch (e: any) { 
             showAlert(`Create announcement error: ${e.message}`, 'error'); 
         }
@@ -532,7 +527,7 @@ const App = () => {
             showAlert('Announcement updated!'); 
             setShowCreateAnnouncementModal(false); 
             setAnnouncementToEdit(null);
-            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
+            fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
         } catch (e: any) { 
             showAlert(`Update announcement error: ${e.message}`, 'error'); 
         }
@@ -544,7 +539,7 @@ const App = () => {
             const { error } = await supabase.from('announcements').delete().eq('id', announcementId); 
             if (error) throw error; 
             showAlert('Announcement deleted!'); 
-            fetchData('announcements', setAnnouncements, 'announcements', { column: 'publish_date', ascending: false });
+            fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
         } catch (e: any) { 
             showAlert(`Delete announcement error: ${e.message}`, 'error'); 
         } 
@@ -560,7 +555,7 @@ const App = () => {
             if (error) throw error; 
             showAlert('Invoice created!'); 
             setShowCreateInvoiceModal(false);
-            fetchData('invoices', setInvoices, 'invoices', { column: 'invoice_date', ascending: false });
+            fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
         } catch (e: any) { 
             showAlert(`Create invoice error: ${e.message}`, 'error'); 
         }
@@ -574,7 +569,6 @@ const App = () => {
             const primaryParent = primaryParentLink?.parents;
             if (primaryParent) {
                 setLoadingData(prev => ({...prev, parentForInvoice: true}));
-                // The parent data is already joined, so we can set it directly
                 setParentDetailsForInvoice(primaryParent);
                 setLoadingData(prev => ({...prev, parentForInvoice: false}));
             } else {
@@ -601,7 +595,7 @@ const App = () => {
             showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`); 
             setShowAddWaitlistModal(false); 
             setWaitlistEntryToEdit(null);
-            fetchData('waitlistEntries', setWaitlistEntries, 'waitlist_entries', { column: 'created_at', ascending: true });
+            fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Waitlist error: ${e.message}`, 'error'); 
         } 
@@ -613,7 +607,7 @@ const App = () => {
             const { error } = await supabase.from('waitlist_entries').delete().eq('id', entryId); 
             if (error) throw error; 
             showAlert('Waitlist entry removed!'); 
-            fetchData('waitlistEntries', setWaitlistEntries, 'waitlist_entries', { column: 'created_at', ascending: true });
+            fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Delete waitlist entry error: ${e.message}`, 'error'); 
         } 
@@ -627,7 +621,7 @@ const App = () => {
             if (error) throw error;
             showAlert('Parent added successfully!'); 
             setShowAddParentModal(false);
-            fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
+            fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
         } catch (e: any) { showAlert(`Error adding parent: ${e.message}`, 'error'); }
     }, [showAlert, fetchData]);
     
@@ -642,7 +636,7 @@ const App = () => {
             showAlert('Parent details updated!'); 
             setShowEditParentModal(false); 
             setParentToEdit(null);
-            fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
+            fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Error updating parent: ${e.message}`, 'error'); 
         }
@@ -657,7 +651,7 @@ const App = () => {
             const { error } = await supabase.from('parents').delete().eq('id', parentId);
             if (error) throw error; 
             showAlert('Parent deleted successfully!');
-            fetchData('parentsList', setParentsList, 'parents', { column: 'last_name', ascending: true });
+            fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
         } catch (e: any) { 
             showAlert(`Error deleting parent: ${e.message}`, 'error'); 
         }
@@ -677,8 +671,7 @@ const App = () => {
         try {
             const { error } = await supabase.from('messages').insert([messageData]);
             if (error) throw error;
-            // No success alert to keep chat clean. Just refresh data.
-            fetchData('messages', setMessages, 'messages', { column: 'created_at', ascending: true });
+            fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
         } catch (e: any) {
             showAlert(`Error sending message: ${e.message}`, 'error');
         }
@@ -718,24 +711,22 @@ const App = () => {
 
     // --- renderCurrentPage function ---
     const renderCurrentPage = () => {
-        if (loadingAuth || (!session && appMode !== 'auth')) return <Loading />;
-        
         const pageToRender = childForMedications ? 'ChildMedicationsPage' : currentPage;
         
         switch (appMode) {
             case 'admin':
                 switch (pageToRender) {
                     case 'AdminDashboard': return <AdminDashboardPage />;
-                    case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
-                    case 'Staff': return <StaffPage staffList={staff} loading={loadingData.staff} onOpenAddStaffModal={() => setShowAddStaffModal(true)} onEditStaff={handleOpenEditStaffModal} onDeleteStaff={deleteStaffFromSupabase} rooms={rooms} />;
-                    case 'AdminParents': return <AdminParentsPage parentsList={parentsList} loading={loadingData.parentsList} onOpenAddParentModal={() => setShowAddParentModal(true)} onEditParent={handleOpenEditParentModal} onDeleteParent={deleteParentFromSupabase} />;
-                    case 'Rooms': return <RoomManagementPage rooms={rooms} loading={loadingData.rooms} onOpenAddRoomModal={() => setShowAddRoomModal(true)} onEditRoom={handleOpenEditRoomModal} onDeleteRoom={deleteRoomFromSupabase} />;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
-                    case 'AdminIncidentReports': return <AdminIncidentReportsPage incidentReports={incidentReports} children={children} staff={staff} loading={loadingData.incidentReports} onOpenLogIncidentModal={() => setShowLogIncidentModal(true)} onViewIncidentDetails={handleViewIncidentDetails} />;
+                    case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children || false} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
+                    case 'Staff': return <StaffPage staffList={staff} loading={loadingData.staff || false} onOpenAddStaffModal={() => setShowAddStaffModal(true)} onEditStaff={handleOpenEditStaffModal} onDeleteStaff={deleteStaffFromSupabase} rooms={rooms} />;
+                    case 'AdminParents': return <AdminParentsPage parentsList={parentsList} loading={loadingData.parentsList || false} onOpenAddParentModal={() => setShowAddParentModal(true)} onEditParent={handleOpenEditParentModal} onDeleteParent={deleteParentFromSupabase} />;
+                    case 'Rooms': return <RoomManagementPage rooms={rooms} loading={loadingData.rooms || false} onOpenAddRoomModal={() => setShowAddRoomModal(true)} onEditRoom={handleOpenEditRoomModal} onDeleteRoom={deleteRoomFromSupabase} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
+                    case 'AdminIncidentReports': return <AdminIncidentReportsPage incidentReports={incidentReports} children={children} staff={staff} loading={loadingData.incidentReports || false} onOpenLogIncidentModal={() => setShowLogIncidentModal(true)} onViewIncidentDetails={handleViewIncidentDetails} />;
                     case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('Children');}} /> : <Loading />;
-                    case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
-                    case 'AdminBilling': return <AdminBillingPage invoices={invoices} children={children} loading={loadingData.invoices} onOpenCreateInvoiceModal={() => setShowCreateInvoiceModal(true)} onViewInvoiceDetails={handleViewInvoiceDetails} />;
-                    case 'AdminWaitlist': return <AdminWaitlistPage waitlistEntries={waitlistEntries} loading={loadingData.waitlistEntries} onOpenAddWaitlistModal={handleOpenAddWaitlistModal} onEditWaitlistEntry={handleEditWaitlistEntry} onDeleteWaitlistEntry={deleteWaitlistEntryFromSupabase} />;
+                    case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
+                    case 'AdminBilling': return <AdminBillingPage invoices={invoices} children={children} loading={loadingData.invoices || false} onOpenCreateInvoiceModal={() => setShowCreateInvoiceModal(true)} onViewInvoiceDetails={handleViewInvoiceDetails} />;
+                    case 'AdminWaitlist': return <AdminWaitlistPage waitlistEntries={waitlistEntries} loading={loadingData.waitlistEntries || false} onOpenAddWaitlistModal={handleOpenAddWaitlistModal} onEditWaitlistEntry={handleEditWaitlistEntry} onDeleteWaitlistEntry={deleteWaitlistEntryFromSupabase} />;
                     case 'AdminGallery': return <AdminGalleryPage />;
                     case 'Communications': return <CommunicationsPage />;
                     default: return <AdminDashboardPage />; 
@@ -744,11 +735,11 @@ const App = () => {
             case 'teacher':
                 switch (pageToRender) {
                     case 'TeacherDashboard': return <TeacherDashboardPage />;
-                    case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
+                    case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children || false} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
                     case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('Children');}} /> : <Loading />;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
                     case 'AdminGallery': return <AdminGalleryPage />;
-                    case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
+                    case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
                     case 'Communications': return <CommunicationsPage />;
                     default: return <TeacherDashboardPage />;
                 }
@@ -756,7 +747,7 @@ const App = () => {
             case 'assistant':
                 switch (currentPage) {
                     case 'AssistantDashboard': return <div>Assistant Dashboard</div>;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={() => setShowCreateReportModal(true)} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => setShowCreateReportModal(true)} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
                     case 'AdminGallery': return <AdminGalleryPage />;
                     default: return <div>Assistant Dashboard</div>;
                 }
@@ -773,18 +764,18 @@ const App = () => {
                     case 'ParentDashboard': return <ParentDashboardPage currentUser={currentUser} />;
                     case 'ParentDailyReports': {
                         const filteredDailyReports = dailyReports.filter(report => parentChildrenIds.includes(report.child_id));
-                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={parentChildren} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
+                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={parentChildren} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
                     }
                     case 'ParentInvoices': {
                         const filteredInvoices = invoices.filter(inv => parentChildrenIds.includes(inv.child_id));
-                        return <AdminBillingPage invoices={filteredInvoices} children={parentChildren} loading={loadingData.invoices} onOpenCreateInvoiceModal={null} onViewInvoiceDetails={handleViewInvoiceDetails} />;
+                        return <AdminBillingPage invoices={filteredInvoices} children={parentChildren} loading={loadingData.invoices || false} onOpenCreateInvoiceModal={null} onViewInvoiceDetails={handleViewInvoiceDetails} />;
                     }
                     case 'ParentMedications': {
-                         return <ChildrenPage childrenList={parentChildren} loading={loadingData.children} onOpenAddChildModal={()=>{}} onEditChild={()=>{}} onDeleteChild={()=>{}} onToggleCheckIn={()=>{}} onNavigateToChildMedications={handleNavigateToChildMedications} />;
+                         return <ChildrenPage childrenList={parentChildren} loading={loadingData.children || false} onOpenAddChildModal={()=>{}} onEditChild={()=>{}} onDeleteChild={()=>{}} onToggleCheckIn={()=>{}} onNavigateToChildMedications={handleNavigateToChildMedications} />;
                     }
                      case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('ParentMedications');}} /> : <Loading />;
                     case 'AdminGallery': return <AdminGalleryPage />;
-                    case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={null} onEditAnnouncement={null} onDeleteAnnouncement={null} />;
+                    case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={null} onEditAnnouncement={null} onDeleteAnnouncement={null} />;
                     case 'Communications': return <CommunicationsPage />;
                     default: return <ParentDashboardPage currentUser={currentUser} />;
                 }
@@ -797,7 +788,7 @@ const App = () => {
     };
     
     // --- Main Return for App Component ---
-    if (loadingAuth) {
+    if (appIsLoading) {
         return <Loading />;
     }
     
