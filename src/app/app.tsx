@@ -156,32 +156,37 @@ const App = () => {
     
     const fetchAllDataForRole = useCallback(async (role: string) => {
         setLoadingData({ all: true });
-        const promises = [
-            fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
-            fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
-            fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
-            fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
-        ];
-
-        if (['admin', 'teacher', 'assistant'].includes(role)) {
-            promises.push(fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true })));
-            promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
-        } else if (role === 'parent') {
-            promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
-            promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+        try {
+            const promises = [
+                fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
+                fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
+                fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+                fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
+                fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
+            ];
+    
+            if (['admin', 'teacher', 'assistant'].includes(role)) {
+                promises.push(fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true })));
+                promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+            } else if (role === 'parent') {
+                promises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+                promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+            }
+            
+            if (role === 'admin') {
+                promises.push(fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false })));
+                promises.push(fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false })));
+                promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+                promises.push(fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true })));
+                promises.push(fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true })));
+            }
+    
+            await Promise.all(promises);
+        } catch (e: any) {
+            showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
+        } finally {
+            setLoadingData(prev => ({ ...prev, all: false }));
         }
-        
-        if (role === 'admin') {
-            promises.push(fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false })));
-            promises.push(fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false })));
-            promises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
-            promises.push(fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true })));
-            promises.push(fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true })));
-        }
-
-        await Promise.all(promises);
-        setLoadingData({ all: false });
     }, [fetchData, showAlert]);
 
     useEffect(() => {
