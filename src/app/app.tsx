@@ -155,7 +155,6 @@ const App = () => {
     }, [showAlert]);
     
     const fetchAllDataForRole = useCallback(async (role: string) => {
-        setLoadingData({ all: true });
         try {
             const promises = [
                 fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
@@ -184,8 +183,6 @@ const App = () => {
             await Promise.all(promises);
         } catch (e: any) {
             showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
-        } finally {
-            setLoadingData(prev => ({ ...prev, all: false }));
         }
     }, [fetchData, showAlert]);
 
@@ -250,7 +247,7 @@ const App = () => {
         });
 
         return () => { subscription?.unsubscribe(); };
-    }, [showAlert, fetchAllDataForRole]);
+    }, [fetchAllDataForRole]);
     
     // --- ALL CRUD OPERATIONS ---
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'child_parents'>, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
@@ -803,7 +800,7 @@ const App = () => {
     };
     
     // --- Main Return for App Component ---
-    if (appIsLoading || loadingData.all) {
+    if (appIsLoading) {
         return <Loading />;
     }
     
@@ -885,3 +882,5 @@ const App = () => {
 };
 
 export default App;
+
+    
