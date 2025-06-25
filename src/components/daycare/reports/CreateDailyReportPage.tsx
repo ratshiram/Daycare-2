@@ -120,43 +120,60 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
 
     return (
         <Modal onClose={onCancel} title={isEditing ? 'Edit Daily Report' : 'Create Daily Report'} size="large">
-            <form onSubmit={handleSubmit} className="form-layout">
-                <SelectField label="Child" id="child_id" name="child_id" value={formData.child_id} onChange={handleChange} required icon={Icons.Smile} disabled={isEditing}>
-                    <option value="">Select Child</option>
-                    {Array.isArray(children) && children.map(child => <option key={child.id} value={child.id}>{child.name}</option>)}
-                </SelectField>
-                <InputField label="Report Date" id="report_date" name="report_date" type="date" value={formData.report_date} onChange={handleChange} required />
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <SelectField label="Child" id="child_id" name="child_id" value={formData.child_id} onChange={handleChange} required icon={Icons.Smile} disabled={isEditing}>
+                        <option value="">Select Child</option>
+                        {Array.isArray(children) && children.map(child => <option key={child.id} value={child.id}>{child.name}</option>)}
+                    </SelectField>
+                    <InputField label="Report Date" id="report_date" name="report_date" type="date" value={formData.report_date} onChange={handleChange} required />
+                </div>
+                
                 <SelectField label="Mood" id="mood" name="mood" value={formData.mood || ''} onChange={handleChange}>
                     <option value="Happy">Happy</option><option value="Playful">Playful</option><option value="Tired">Tired</option><option value="Quiet">Quiet</option><option value="Upset">Upset</option>
                 </SelectField>
 
-                <h3 className="form-section-title">Meals</h3>
-                <InputField label="Breakfast Notes" name="breakfast" value={formData.meals?.breakfast} onChange={(e) => handleMealChange(e, 'breakfast')} placeholder="e.g., Ate all cereal" />
-                <InputField label="Lunch Notes" name="lunch" value={formData.meals?.lunch} onChange={(e) => handleMealChange(e, 'lunch')} placeholder="e.g., Enjoyed pasta, some veggies" />
-
-                <h3 className="form-section-title">Naps</h3>
-                {formData.naps?.map((nap, index) => (
-                    <div key={index} className="form-row grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
-                        <InputField label={`Nap ${index + 1} Start`} type="time" value={nap.start || ''} onChange={(e) => handleNapChange(e, index, 'start')} />
-                        <InputField label={`Nap ${index + 1} End`} type="time" value={nap.end || ''} onChange={(e) => handleNapChange(e, index, 'end')} />
+                <div>
+                    <h3 className="form-section-title !mt-0 !mb-4 !border-t-0 pl-0">Meals</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="Breakfast Notes" name="breakfast" value={formData.meals?.breakfast} onChange={(e) => handleMealChange(e, 'breakfast')} placeholder="e.g., Ate all cereal" />
+                        <InputField label="Lunch Notes" name="lunch" value={formData.meals?.lunch} onChange={(e) => handleMealChange(e, 'lunch')} placeholder="e.g., Enjoyed pasta, some veggies" />
                     </div>
-                ))}
-                <button type="button" onClick={addNapField} className="btn btn-secondary btn-small col-span-2 justify-self-start">Add Another Nap</button>
+                </div>
 
-                <TextAreaField label="Activities" id="activities" name="activities" value={formData.activities || ''} onChange={handleChange} />
-                <TextAreaField label="Toileting/Diapers" id="toileting_diapers" name="toileting_diapers" value={formData.toileting_diapers || ''} onChange={handleChange} />
-                <TextAreaField label="Supplies Needed" id="supplies_needed" name="supplies_needed" value={formData.supplies_needed || ''} onChange={handleChange} />
-                <TextAreaField label="Notes for Parents" id="notes_for_parents" name="notes_for_parents" value={formData.notes_for_parents || ''} onChange={handleChange} />
+                <div>
+                    <h3 className="form-section-title !mt-0 !mb-4 !border-t-0 pl-0">Naps</h3>
+                    <div className="space-y-4">
+                    {formData.naps?.map((nap, index) => (
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <InputField label={`Nap ${index + 1} Start`} type="time" value={nap.start || ''} onChange={(e) => handleNapChange(e, index, 'start')} />
+                            <InputField label={`Nap ${index + 1} End`} type="time" value={nap.end || ''} onChange={(e) => handleNapChange(e, index, 'end')} />
+                        </div>
+                    ))}
+                    </div>
+                    <button type="button" onClick={addNapField} className="btn btn-secondary btn-small mt-4">Add Another Nap</button>
+                </div>
+                
+                <div className="space-y-4">
+                    <TextAreaField label="Activities" id="activities" name="activities" value={formData.activities || ''} onChange={handleChange} />
+                    <TextAreaField label="Toileting/Diapers" id="toileting_diapers" name="toileting_diapers" value={formData.toileting_diapers || ''} onChange={handleChange} />
+                    <TextAreaField label="Supplies Needed" id="supplies_needed" name="supplies_needed" value={formData.supplies_needed || ''} onChange={handleChange} />
+                    <TextAreaField label="Notes for Parents" id="notes_for_parents" name="notes_for_parents" value={formData.notes_for_parents || ''} onChange={handleChange} />
+                </div>
 
-                <h3 className="form-section-title">Media (Optional)</h3>
-                <InputField label="Photo 1" type="file" onChange={(e) => handleFileChange(e, 'photo1')} icon={Icons.UploadCloud} accept="image/*" />
-                {formData.photo_url_1 && !photo1File && <p className="text-sm text-muted-foreground">Current: {formData.photo_url_1.split('/').pop()}</p>}
-                <InputField label="Photo 2" type="file" onChange={(e) => handleFileChange(e, 'photo2')} icon={Icons.UploadCloud} accept="image/*" />
-                {formData.photo_url_2 && !photo2File && <p className="text-sm text-muted-foreground">Current: {formData.photo_url_2.split('/').pop()}</p>}
-                <InputField label="Video 1" type="file" onChange={(e) => handleFileChange(e, 'video1')} icon={Icons.UploadCloud} accept="video/*" />
-                {formData.video_url_1 && !video1File && <p className="text-sm text-muted-foreground">Current: {formData.video_url_1.split('/').pop()}</p>}
-                <InputField label="Video 2" type="file" onChange={(e) => handleFileChange(e, 'video2')} icon={Icons.UploadCloud} accept="video/*" />
-                {formData.video_url_2 && !video2File && <p className="text-sm text-muted-foreground">Current: {formData.video_url_2.split('/').pop()}</p>}
+                <div>
+                    <h3 className="form-section-title !mt-0 !mb-4 !border-t-0 pl-0">Media (Optional)</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="Photo 1" type="file" onChange={(e) => handleFileChange(e, 'photo1')} icon={Icons.UploadCloud} accept="image/*" />
+                        {formData.photo_url_1 && !photo1File && <p className="text-sm text-muted-foreground self-center">Current: {formData.photo_url_1.split('/').pop()}</p>}
+                        <InputField label="Photo 2" type="file" onChange={(e) => handleFileChange(e, 'photo2')} icon={Icons.UploadCloud} accept="image/*" />
+                        {formData.photo_url_2 && !photo2File && <p className="text-sm text-muted-foreground self-center">Current: {formData.photo_url_2.split('/').pop()}</p>}
+                        <InputField label="Video 1" type="file" onChange={(e) => handleFileChange(e, 'video1')} icon={Icons.UploadCloud} accept="video/*" />
+                        {formData.video_url_1 && !video1File && <p className="text-sm text-muted-foreground self-center">Current: {formData.video_url_1.split('/').pop()}</p>}
+                        <InputField label="Video 2" type="file" onChange={(e) => handleFileChange(e, 'video2')} icon={Icons.UploadCloud} accept="video/*" />
+                        {formData.video_url_2 && !video2File && <p className="text-sm text-muted-foreground self-center">Current: {formData.video_url_2.split('/').pop()}</p>}
+                    </div>
+                </div>
                 
                 <FormActions onCancel={onCancel} submitText={isEditing ? 'Save Changes' : 'Add Report'} submitIcon={isEditing ? Icons.CheckCircle : Icons.PlusCircle} loading={isUploading} />
             </form>
