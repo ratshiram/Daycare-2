@@ -576,9 +576,9 @@ const App = () => {
                     {(!session || appMode === 'auth') ? (
                         <AuthPage onSignUp={handleSignUp} onSignIn={handleSignIn} loading={authActionLoading} />
                     ) : (
-                        <div className="main-app-content">
+                        <div className={`main-app-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
                              {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
-                                <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+                                <aside className="sidebar">
                                     <div className="sidebar-header">
                                         {isSidebarOpen && <span className="sidebar-title">{currentPortalName}</span>}
                                         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="sidebar-toggle-button">
