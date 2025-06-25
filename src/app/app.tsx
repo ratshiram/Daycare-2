@@ -168,6 +168,7 @@ const App = () => {
         };
 
         const processSessionChange = async (sessionData: Session | null, eventType: string | null = null) => {
+            setLoadingAuth(true);
             setSession(sessionData);
             if (sessionData?.user) {
                 const userProfileDetails = await fetchUserProfile(sessionData.user);
@@ -203,7 +204,6 @@ const App = () => {
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sessionData) => {
-            if (_event === 'SIGNED_OUT') setLoadingAuth(true);
             processSessionChange(sessionData, _event);
         });
 
@@ -308,7 +308,7 @@ const App = () => {
             if (dataToInsert.role !== 'teacher') dataToInsert.main_room_id = null;
             else if (!dataToInsert.main_room_id || dataToInsert.main_room_id === '') dataToInsert.main_room_id = null; 
             
-            dataToInsert.user_id = dataToInsert.email === currentUser?.email ? currentUser.id : null;
+            dataToInsert.user_id = (currentUser && dataToInsert.email === currentUser.email) ? currentUser.id : null;
             const {error}=await supabase.from('staff').insert([dataToInsert]);
             if(error) throw error;
             showAlert('Staff added!'); 
@@ -694,7 +694,7 @@ const App = () => {
 
     // --- renderCurrentPage function ---
     const renderCurrentPage = () => {
-        if (loadingAuth) return <Loading />;
+        if (loadingAuth || (!session && appMode !== 'auth')) return <Loading />;
         
         const pageToRender = childForMedications ? 'ChildMedicationsPage' : currentPage;
         
@@ -739,7 +739,7 @@ const App = () => {
     
             case 'parent':
                 switch (pageToRender) {
-                    case 'ParentDashboard': return <ParentDashboardPage />;
+                    case 'ParentDashboard': return <ParentDashboardPage currentUser={currentUser} />;
                     case 'ParentDailyReports': {
                         if (!currentUser) return <Loading />;
                         const parentChildrenIds = children.filter(c => c.primary_parent_id === currentUser.profileId).map(c => c.id);
@@ -763,7 +763,7 @@ const App = () => {
                     case 'AdminGallery': return <AdminGalleryPage />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={null} onEditAnnouncement={null} onDeleteAnnouncement={null} />;
                     case 'Communications': return <CommunicationsPage />;
-                    default: return <ParentDashboardPage />;
+                    default: return <ParentDashboardPage currentUser={currentUser} />;
                 }
             case 'unknown_profile':
             case 'exception_profile':
