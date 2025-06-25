@@ -24,6 +24,7 @@ export interface Child extends Base {
     age: number | null;
     current_room_id?: string | null;
     primary_parent_id?: string | null;
+    parent_2_id?: string | null;
     emergency_contact?: string | null;
     allergies?: string | null;
     notes?: string | null;
@@ -156,8 +157,10 @@ export interface StaffLeaveRequest extends Base {
     staff_id: string;
     start_date: string;
     end_date: string;
+    leave_type?: string | null;
     reason?: string | null;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'denied';
+    reviewed_by_admin_id?: string | null;
 }
 
 export interface Message extends Base {

@@ -7,10 +7,11 @@ import { FormActions } from '../ui/FormActions';
 import { Icons } from '@/components/Icons';
 import type { StaffLeaveRequest } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
+import { SelectField } from '../ui/SelectField';
 
 interface RequestLeaveModalProps {
     onClose: () => void;
-    onSubmitRequest: (requestData: Omit<StaffLeaveRequest, 'id' | 'created_at' | 'staff_id' | 'status'>) => void;
+    onSubmitRequest: (requestData: Omit<StaffLeaveRequest, 'id' | 'created_at' | 'staff_id' | 'status' | 'reviewed_by_admin_id'>) => void;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
@@ -18,10 +19,11 @@ export const RequestLeaveModal: React.FC<RequestLeaveModalProps> = ({ onClose, o
     const [formData, setFormData] = useState({
         start_date: '',
         end_date: '',
+        leave_type: 'Personal',
         reason: '',
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -60,6 +62,13 @@ export const RequestLeaveModal: React.FC<RequestLeaveModalProps> = ({ onClose, o
                     required 
                     min={formData.start_date || formatDateForInput(new Date())}
                 />
+                 <div className="md:col-span-2">
+                    <SelectField label="Leave Type" name="leave_type" value={formData.leave_type} onChange={handleChange} required>
+                        <option value="Personal">Personal</option>
+                        <option value="Vacation">Vacation</option>
+                        <option value="Sick">Sick</option>
+                    </SelectField>
+                </div>
                 <div className="md:col-span-2">
                     <TextAreaField 
                         label="Reason for Leave (Optional)" 

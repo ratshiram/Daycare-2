@@ -155,40 +155,56 @@ const App = () => {
     // --- Centralized Data Loading Effect ---
     useEffect(() => {
         const processSessionChange = async (sessionData: Session | null) => {
-            const fetchUserProfile = async (user: User) => {
-                if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
-                try {
-                    const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
-                    if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
-                    if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
+            try {
+                if (sessionData?.user) {
+                    // Fetch user profile first
+                    const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', sessionData.user.id).single();
+                    if (staffError && staffError.code !== 'PGRST116') throw new Error(`Staff profile error: ${staffError.message}`);
 
-                    const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
-                    if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
-                    if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
-
-                    return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-                } catch (e) {
-                    console.error("Exception fetching user profile:", e);
-                    return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-                }
-            };
-
-            const fetchAllDataForRole = async (role: string, userProfile: any) => {
-                const fetchData = async (dataType: string, query: Promise<any>) => {
-                    setLoadingData(prev => ({...prev, [dataType]: true}));
-                    try {
-                      const { data, error } = await query;
-                      if (error) throw error;
-                      return data || [];
-                    } catch (e: any) { 
-                        showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); 
-                        return [];
-                    } finally { 
-                        setLoadingData(prev => ({...prev, [dataType]: false})); 
+                    const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', sessionData.user.id).single();
+                    if (parentError && parentError.code !== 'PGRST116') throw new Error(`Parent profile error: ${parentError.message}`);
+                    
+                    let role = 'unknown', name = 'User', profileId = null, staff_id = null;
+                    if (staffProfile) {
+                        role = staffProfile.role.toLowerCase();
+                        name = staffProfile.name;
+                        profileId = staffProfile.id;
+                        staff_id = staffProfile.id;
+                    } else if (parentProfile) {
+                        role = 'parent';
+                        name = `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim();
+                        profileId = parentProfile.id;
                     }
-                };
 
-                try {
+                    const userDetails = { ...sessionData.user, role, name, profileId, staff_id };
+                    setCurrentUser(userDetails as CurrentUser);
+                    setAppMode(role);
+
+                    let initialPage = '';
+                    switch (role) {
+                        case 'admin': initialPage = 'AdminDashboard'; break;
+                        case 'teacher': initialPage = 'TeacherDashboard'; break;
+                        case 'assistant': initialPage = 'AssistantDashboard'; break;
+                        case 'parent': initialPage = 'ParentDashboard'; break;
+                        default: initialPage = 'UnknownRolePage';
+                    }
+                    setCurrentPage(initialPage);
+                    
+                    // Fetch all data for the determined role
+                    const fetchData = async (dataType: string, query: Promise<any>) => {
+                        setLoadingData(prev => ({...prev, [dataType]: true}));
+                        try {
+                          const { data, error } = await query;
+                          if (error) throw error;
+                          return data || [];
+                        } catch (e: any) { 
+                            showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); 
+                            return [];
+                        } finally { 
+                            setLoadingData(prev => ({...prev, [dataType]: false})); 
+                        }
+                    };
+
                     const dataPromises: { [key: string]: Promise<any> } = {
                         rooms: fetchData('rooms', supabase.from('rooms').select('*').order('name', { ascending: true })),
                         announcements: fetchData('announcements', supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
@@ -202,10 +218,12 @@ const App = () => {
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         if (role === 'admin') {
                             dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false }));
-                        } else if (userProfile?.staff_id) {
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').eq('staff_id', userProfile.staff_id).order('start_date', { ascending: false }));
+                        } else if (userDetails?.staff_id) {
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('staff_leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
                         }
                     } else if (role === 'parent') {
+                        // Parents might see reports and invoices for children they are primary OR secondary parent of
+                        // This logic is handled client-side for simplicity, but could be a DB function for performance
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
                     }
@@ -233,43 +251,18 @@ const App = () => {
                         }
                     });
 
-                } catch (e: any) {
-                    showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
-                }
-            };
-        
-            try {
-                setSession(sessionData);
-
-                if (sessionData?.user) {
-                    const userProfileDetails = await fetchUserProfile(sessionData.user);
-                    setCurrentUser({ ...sessionData.user, ...userProfileDetails } as CurrentUser);
-                    setAppMode(userProfileDetails.role);
-
-                    let initialPage = '';
-                    switch (userProfileDetails.role) {
-                        case 'admin': initialPage = 'AdminDashboard'; break;
-                        case 'teacher': initialPage = 'TeacherDashboard'; break;
-                        case 'assistant': initialPage = 'AssistantDashboard'; break;
-                        case 'parent': initialPage = 'ParentDashboard'; break;
-                        default: initialPage = 'UnknownRolePage';
-                    }
-                    setCurrentPage(initialPage);
-                    
-                    await fetchAllDataForRole(userProfileDetails.role, userProfileDetails);
-
                 } else {
                     setAppMode('auth');
                     setCurrentUser(null);
+                    setCurrentPage('');
                     setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
                     setIncidentReports([]); setMedications([]); setMedicationLogs([]);
                     setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
                     setParentsList([]); setMessages([]); setStaffLeaveRequests([]);
-                    setCurrentPage('');
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("A critical error occurred during session processing:", error);
-                showAlert("There was an error loading the application. Please try refreshing.", 'error');
+                showAlert(`There was an error loading the application: ${error.message}`, 'error');
                 setAppMode('auth');
             } finally {
                 setAppIsLoading(false);
@@ -288,13 +281,13 @@ const App = () => {
     }, [showAlert]);
     
     // Generic fetchData function used by CRUD operations below
-    const fetchData = useCallback(async (dataType: string, query: Promise<any>) => {
+    const fetchData = useCallback(async (dataType: string, setter: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
         setLoadingData(prev => ({...prev, [dataType]: true}));
         try {
           const { data, error } = await query;
           if (error) throw error;
-          return data || [];
-        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); return []; }
+          setter(data || []);
+        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); }
         finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
     }, [showAlert]);
     
@@ -302,6 +295,7 @@ const App = () => {
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'primary_parent'>) => {
         if (!childFormData.primary_parent_id) { showAlert("A primary parent must be selected.", "error"); return; }
         if (childFormData.current_room_id === '') childFormData.current_room_id = null;
+        if (childFormData.parent_2_id === '') childFormData.parent_2_id = null;
         
         try { 
             const { data: newChild, error: childError } = await supabase.from('children').insert([childFormData]).select().single();
@@ -309,7 +303,7 @@ const App = () => {
     
             showAlert('Child added successfully!'); 
             setShowAddChildModal(false);
-            fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
     }, [showAlert, fetchData]);
     
@@ -324,13 +318,16 @@ const App = () => {
             if ('current_room_id' in dataToUpdate && dataToUpdate.current_room_id === '') {
                 (dataToUpdate as any).current_room_id = null;
             }
+            if ('parent_2_id' in dataToUpdate && dataToUpdate.parent_2_id === '') {
+                (dataToUpdate as any).parent_2_id = null;
+            }
             const { error: childUpdateError } = await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); 
             if (childUpdateError) throw childUpdateError; 
 
             showAlert('Child updated!'); 
             setShowEditChildModal(false); 
             setChildToEdit(null);
-            fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){ showAlert(`Update child error: ${e.message}`,'error'); }
     }, [showAlert, childToEdit, fetchData]);
     
@@ -340,7 +337,7 @@ const App = () => {
             const {error}=await supabase.from('children').delete().eq('id', childId); 
             if(error) throw error; 
             showAlert('Child deleted!');
-            fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Delete child error: ${e.message}`,'error');}
     }, [showAlert, fetchData]);
 
@@ -350,7 +347,7 @@ const App = () => {
         const now = new Date().toISOString(); 
         const wasCheckedIn = child.check_in_time && !child.check_out_time; 
         const updates = {check_in_time: wasCheckedIn ? child.check_in_time : now, check_out_time: wasCheckedIn ? now : null}; 
-        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Check-in/out error: ${e.message}`,'error');}
     }, [showAlert, children, fetchData]);
       
@@ -689,9 +686,9 @@ const App = () => {
     const deleteParentFromSupabase = useCallback(async (parentId: string) => {
         if (!window.confirm("Delete parent? This may affect linked children.")) return;
         try {
-            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('children').select('id').eq('primary_parent_id', parentId);
+            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('children').select('id').or(`primary_parent_id.eq.${parentId},parent_2_id.eq.${parentId}`);
             if (childrenCheckError) { showAlert(`Error checking linked children: ${childrenCheckError.message}`, 'error'); return; }
-            if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign primary parent first.`, 'error'); return; }
+            if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign parent(s) first.`, 'error'); return; }
             const { error } = await supabase.from('parents').delete().eq('id', parentId);
             if (error) throw error; 
             showAlert('Parent deleted successfully!');
@@ -721,7 +718,7 @@ const App = () => {
         }
     }, [currentUser, showAlert, fetchData]);
     
-    const addStaffLeaveRequestToSupabase = useCallback(async (requestData: Omit<StaffLeaveRequest, 'id' | 'created_at' | 'staff_id' | 'status'>) => {
+    const addStaffLeaveRequestToSupabase = useCallback(async (requestData: Omit<StaffLeaveRequest, 'id' | 'created_at' | 'staff_id' | 'status' | 'reviewed_by_admin_id'>) => {
         if (!currentUser?.staff_id) {
             showAlert("You must be logged in as staff to request leave.", "error");
             return;
@@ -745,13 +742,13 @@ const App = () => {
         }
     }, [showAlert, currentUser, fetchData]);
 
-    const updateStaffLeaveRequestStatus = useCallback(async (requestId: string, status: 'approved' | 'rejected') => {
-        if (currentUser?.role !== 'admin') {
+    const updateStaffLeaveRequestStatus = useCallback(async (requestId: string, status: 'approved' | 'denied') => {
+        if (currentUser?.role !== 'admin' || !currentUser.staff_id) {
             showAlert("You do not have permission to perform this action.", "error");
             return;
         }
         try {
-            const { error } = await supabase.from('staff_leave_requests').update({ status }).eq('id', requestId);
+            const { error } = await supabase.from('staff_leave_requests').update({ status, reviewed_by_admin_id: currentUser.staff_id }).eq('id', requestId);
             if (error) throw error;
             showAlert(`Request has been ${status}.`);
             fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('staff_leave_requests').select('*').order('start_date', { ascending: false }));
@@ -841,7 +838,7 @@ const App = () => {
             case 'parent':
                 const getParentChildren = () => {
                     if (!currentUser || !currentUser.profileId || !Array.isArray(children)) return [];
-                    return children.filter(c => c.primary_parent_id === currentUser.profileId);
+                    return children.filter(c => c.primary_parent_id === currentUser.profileId || c.parent_2_id === currentUser.profileId);
                 };
                 const parentChildren = getParentChildren();
                 const parentChildrenIds = parentChildren.map(c => c.id);
