@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
@@ -7,19 +8,19 @@ import Loading from '@/app/loading';
 interface AdminParentsPageProps {
     parentsList: Parent[];
     loading: boolean;
-    onNavigateToAddParent: () => void;
+    onOpenAddParentModal: () => void;
     onEditParent: (parent: Parent) => void;
     onDeleteParent: (parentId: string) => void;
 }
 
-export const AdminParentsPage: React.FC<AdminParentsPageProps> = ({ parentsList, loading, onNavigateToAddParent, onEditParent, onDeleteParent }) => {
+export const AdminParentsPage: React.FC<AdminParentsPageProps> = ({ parentsList, loading, onOpenAddParentModal, onEditParent, onDeleteParent }) => {
     if (loading && (!Array.isArray(parentsList) || parentsList.length === 0)) return <Loading />;
 
     return (
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Parents</h2>
-                <button onClick={onNavigateToAddParent} className="btn btn-primary btn-small">
+                <button onClick={onOpenAddParentModal} className="btn btn-primary btn-small">
                     <Icons.UserPlus size={18} /> Add New Parent
                 </button>
             </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
@@ -7,13 +8,13 @@ import Loading from '@/app/loading';
 interface StaffPageProps {
     staffList: Staff[];
     loading: boolean;
-    onNavigateToAddStaff: () => void;
+    onOpenAddStaffModal: () => void;
     onEditStaff: (staff: Staff) => void;
     onDeleteStaff: (staffId: string) => void;
     rooms: Room[];
 }
 
-export const StaffPage: React.FC<StaffPageProps> = ({ staffList, loading, onNavigateToAddStaff, onEditStaff, onDeleteStaff, rooms }) => {
+export const StaffPage: React.FC<StaffPageProps> = ({ staffList, loading, onOpenAddStaffModal, onEditStaff, onDeleteStaff, rooms }) => {
     if (loading && (!Array.isArray(staffList) || staffList.length === 0)) return <Loading />;
 
     const roomNameMap = Array.isArray(rooms) ? rooms.reduce((acc, room) => {
@@ -25,7 +26,7 @@ export const StaffPage: React.FC<StaffPageProps> = ({ staffList, loading, onNavi
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Staff</h2>
-                <button onClick={onNavigateToAddStaff} className="btn btn-primary btn-small">
+                <button onClick={onOpenAddStaffModal} className="btn btn-primary btn-small">
                     <Icons.UserPlus size={18} /> Add New Staff
                 </button>
             </div>

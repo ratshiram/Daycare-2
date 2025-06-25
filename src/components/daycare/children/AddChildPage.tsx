@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { TextAreaField } from '../ui/TextAreaField';
 import { SelectField } from '../ui/SelectField';
@@ -7,15 +9,15 @@ import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
 import type { Child, Parent, Room } from '@/types';
 
-interface AddChildPageProps {
+interface AddChildModalProps {
     onAddChild: (childData: Omit<Child, 'id' | 'created_at'>) => void;
-    onCancel: () => void;
+    onClose: () => void;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
     parentsList: Parent[];
     rooms: Room[];
 }
 
-export const AddChildPage: React.FC<AddChildPageProps> = ({ onAddChild, onCancel, showAlert, parentsList, rooms }) => {
+export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClose, showAlert, parentsList, rooms }) => {
     const [formData, setFormData] = useState<Omit<Child, 'id' | 'created_at'>>({
         name: '', age: null, primary_parent_id: '', current_room_id: '', emergency_contact: '',
         allergies: '', notes: '', medical_info: {}, authorized_pickups: [], billing: {}
@@ -69,10 +71,8 @@ export const AddChildPage: React.FC<AddChildPageProps> = ({ onAddChild, onCancel
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Children</button>
-            <h2 className="page-card-title form-page-title mt-4">Add New Child</h2>
-            <form onSubmit={handleSubmit} className="form-layout">
+        <Modal onClose={onClose} title="Add New Child" size="large">
+            <form onSubmit={handleSubmit} className="form-layout modal-form">
                 <h3 className="form-section-title">Child Information</h3>
                 <InputField label="Child's Full Name" id="name" name="name" value={formData.name} onChange={handleChange} required />
                 <InputField label="Child's Age" id="age" name="age" type="number" value={formData.age === null ? '' : formData.age} onChange={handleChange} required />
@@ -103,8 +103,8 @@ export const AddChildPage: React.FC<AddChildPageProps> = ({ onAddChild, onCancel
                 <InputField label="Doctor's Phone" name="doctorPhone" value={formData.medical_info.doctorPhone || ''} onChange={(e) => handleJsonChange(e, 'medical_info')} />
                 <TextAreaField label="Known Conditions" name="conditions" value={formData.medical_info.conditions || ''} onChange={(e) => handleJsonChange(e, 'medical_info')} />
 
-                <FormActions onCancel={onCancel} submitText="Add Child" submitIcon={Icons.PlusCircle} />
+                <FormActions onCancel={onClose} submitText="Add Child" submitIcon={Icons.PlusCircle} />
             </form>
-        </div>
+        </Modal>
     );
 };

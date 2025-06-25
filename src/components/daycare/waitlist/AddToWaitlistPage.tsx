@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { TextAreaField } from '../ui/TextAreaField';
 import { SelectField } from '../ui/SelectField';
@@ -8,14 +9,14 @@ import { Icons } from '@/components/Icons';
 import type { WaitlistEntry } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
 
-interface AddToWaitlistPageProps {
+interface AddOrEditWaitlistModalProps {
     onAddOrUpdateWaitlistEntry: (entryData: Omit<WaitlistEntry, 'id' | 'created_at'>, isEditing: boolean) => void;
     onCancel: () => void;
     initialData: WaitlistEntry | null;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
-export const AddToWaitlistPage: React.FC<AddToWaitlistPageProps> = ({ onAddOrUpdateWaitlistEntry, onCancel, initialData, showAlert }) => {
+export const AddOrEditWaitlistModal: React.FC<AddOrEditWaitlistModalProps> = ({ onAddOrUpdateWaitlistEntry, onCancel, initialData, showAlert }) => {
     const isEditing = !!initialData;
 
     const [formData, setFormData] = useState<Omit<WaitlistEntry, 'id' | 'created_at'>>({
@@ -41,6 +42,17 @@ export const AddToWaitlistPage: React.FC<AddToWaitlistPageProps> = ({ onAddOrUpd
                 notes: initialData.notes || '',
                 status: initialData.status || 'Pending',
             });
+        } else {
+            setFormData({
+                child_name: '',
+                child_dob: '',
+                parent_name: '',
+                parent_email: '',
+                parent_phone: '',
+                requested_start_date: '',
+                notes: '',
+                status: 'Pending',
+            });
         }
     }, [isEditing, initialData]);
 
@@ -59,13 +71,7 @@ export const AddToWaitlistPage: React.FC<AddToWaitlistPageProps> = ({ onAddOrUpd
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back">
-                <Icons.ArrowLeft size={18} /> Back to Waitlist
-            </button>
-            <h2 className="page-card-title form-page-title mt-4">
-                {isEditing ? 'Edit Waitlist Entry' : 'Add to Waitlist'}
-            </h2>
+        <Modal onClose={onCancel} title={isEditing ? 'Edit Waitlist Entry' : 'Add to Waitlist'} size="medium">
             <form onSubmit={handleSubmit} className="form-layout">
                 <h3 className="form-section-title">Child Information</h3>
                 <InputField label="Child's Full Name" name="child_name" value={formData.child_name} onChange={handleChange} required icon={Icons.Smile} />
@@ -92,6 +98,6 @@ export const AddToWaitlistPage: React.FC<AddToWaitlistPageProps> = ({ onAddOrUpd
                     submitIcon={isEditing ? Icons.CheckCircle : Icons.PlusCircle} 
                 />
             </form>
-        </div>
+        </Modal>
     );
 };

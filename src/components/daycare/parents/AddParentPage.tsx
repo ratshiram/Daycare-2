@@ -1,16 +1,18 @@
+
 import React, { useState } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { FormActions } from '../ui/FormActions';
 import { Icons } from '@/components/Icons';
 import type { Parent } from '@/types';
 
-interface AddParentPageProps {
+interface AddParentModalProps {
     onAddParent: (parentData: Omit<Parent, 'id' | 'created_at'>) => void;
-    onCancel: () => void;
+    onClose: () => void;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
-export const AddParentPage: React.FC<AddParentPageProps> = ({ onAddParent, onCancel, showAlert }) => {
+export const AddParentModal: React.FC<AddParentModalProps> = ({ onAddParent, onClose, showAlert }) => {
     const [formData, setFormData] = useState<Omit<Parent, 'id' | 'created_at'>>({
         first_name: '',
         last_name: '',
@@ -37,9 +39,7 @@ export const AddParentPage: React.FC<AddParentPageProps> = ({ onAddParent, onCan
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Parents</button>
-            <h2 className="page-card-title form-page-title mt-4">Add New Parent</h2>
+        <Modal onClose={onClose} title="Add New Parent" size="medium">
             <form onSubmit={handleSubmit} className="form-layout">
                 <InputField label="First Name" name="first_name" value={formData.first_name} onChange={handleChange} required icon={Icons.UserCircle2} />
                 <InputField label="Last Name" name="last_name" value={formData.last_name} onChange={handleChange} required />
@@ -51,8 +51,8 @@ export const AddParentPage: React.FC<AddParentPageProps> = ({ onAddParent, onCan
                 <InputField label="Province/State" name="province_state" value={formData.province_state || ''} onChange={handleChange} />
                 <InputField label="Postal Code" name="postal_code" value={formData.postal_code || ''} onChange={handleChange} />
 
-                <FormActions onCancel={onCancel} submitText="Add Parent" submitIcon={Icons.UserPlus} />
+                <FormActions onCancel={onClose} submitText="Add Parent" submitIcon={Icons.UserPlus} />
             </form>
-        </div>
+        </Modal>
     );
 };

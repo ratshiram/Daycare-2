@@ -10,11 +10,11 @@ interface AdminBillingPageProps {
     invoices: Invoice[];
     loading: boolean;
     children: Child[];
-    onNavigateToCreateInvoice: (() => void) | null;
+    onOpenCreateInvoiceModal: (() => void) | null;
     onViewInvoiceDetails: (invoice: Invoice) => void;
 }
 
-export const AdminBillingPage: React.FC<AdminBillingPageProps> = ({ invoices, loading, children, onNavigateToCreateInvoice, onViewInvoiceDetails }) => {
+export const AdminBillingPage: React.FC<AdminBillingPageProps> = ({ invoices, loading, children, onOpenCreateInvoiceModal, onViewInvoiceDetails }) => {
     if (loading && (!Array.isArray(invoices) || invoices.length === 0)) return <Loading />;
 
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
@@ -26,8 +26,8 @@ export const AdminBillingPage: React.FC<AdminBillingPageProps> = ({ invoices, lo
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Billing & Invoices</h2>
-                {onNavigateToCreateInvoice && (
-                    <button onClick={onNavigateToCreateInvoice} className="btn btn-primary btn-small">
+                {onOpenCreateInvoiceModal && (
+                    <button onClick={onOpenCreateInvoiceModal} className="btn btn-primary btn-small">
                         <Icons.PlusCircle size={18} /> New Invoice
                     </button>
                 )}

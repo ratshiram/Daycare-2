@@ -1,15 +1,17 @@
+
 import React, { useState } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { FormActions } from '../ui/FormActions';
 import { Icons } from '@/components/Icons';
 import type { Room } from '@/types';
 
-interface AddRoomPageProps {
+interface AddRoomModalProps {
     onAddRoom: (roomData: Omit<Room, 'id' | 'created_at'>) => void;
-    onCancel: () => void;
+    onClose: () => void;
 }
 
-export const AddRoomPage: React.FC<AddRoomPageProps> = ({ onAddRoom, onCancel }) => {
+export const AddRoomModal: React.FC<AddRoomModalProps> = ({ onAddRoom, onClose }) => {
     const [formData, setFormData] = useState<Omit<Room, 'id' | 'created_at'>>({
         name: '',
         capacity: null,
@@ -27,14 +29,12 @@ export const AddRoomPage: React.FC<AddRoomPageProps> = ({ onAddRoom, onCancel })
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Rooms</button>
-            <h2 className="page-card-title form-page-title mt-4">Add New Room</h2>
+        <Modal onClose={onClose} title="Add New Room" size="medium">
             <form onSubmit={handleSubmit} className="form-layout">
                 <InputField label="Room Name" name="name" value={formData.name} onChange={handleChange} required icon={Icons.Building} />
                 <InputField label="Capacity" name="capacity" type="number" value={formData.capacity === null ? '' : formData.capacity} onChange={handleChange} />
-                <FormActions onCancel={onCancel} submitText="Add Room" submitIcon={Icons.PlusCircle} />
+                <FormActions onCancel={onClose} submitText="Add Room" submitIcon={Icons.PlusCircle} />
             </form>
-        </div>
+        </Modal>
     );
 };

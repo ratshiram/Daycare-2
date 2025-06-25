@@ -1,4 +1,6 @@
+
 import React, { useState } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { TextAreaField } from '../ui/TextAreaField';
 import { SelectField } from '../ui/SelectField';
@@ -8,7 +10,7 @@ import { Icons } from '@/components/Icons';
 import type { Child, Staff, IncidentReport } from '@/types';
 import { formatDateTimeForInput } from '@/lib/customUtils';
 
-interface LogIncidentPageProps {
+interface LogIncidentModalProps {
     children: Child[];
     staff: Staff[];
     currentUser: any;
@@ -17,7 +19,7 @@ interface LogIncidentPageProps {
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
-export const LogIncidentPage: React.FC<LogIncidentPageProps> = ({ children, onLogIncident, onCancel, showAlert }) => {
+export const LogIncidentModal: React.FC<LogIncidentModalProps> = ({ children, onLogIncident, onCancel, showAlert }) => {
     const [formData, setFormData] = useState<Omit<IncidentReport, 'id' | 'created_at' | 'reported_by_staff_id'>>({
         child_id: null,
         incident_datetime: formatDateTimeForInput(new Date()),
@@ -48,9 +50,7 @@ export const LogIncidentPage: React.FC<LogIncidentPageProps> = ({ children, onLo
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Incidents</button>
-            <h2 className="page-card-title form-page-title mt-4">Log New Incident Report</h2>
+        <Modal onClose={onCancel} title="Log New Incident Report" size="large">
             <form onSubmit={handleSubmit} className="form-layout">
                 <SelectField label="Child Involved" name="child_id" value={formData.child_id || ''} onChange={handleChange} required icon={Icons.Smile}>
                     <option value="">Select Child</option>
@@ -77,6 +77,6 @@ export const LogIncidentPage: React.FC<LogIncidentPageProps> = ({ children, onLo
 
                 <FormActions onCancel={onCancel} submitText="Log Incident" submitIcon={Icons.FilePlus} />
             </form>
-        </div>
+        </Modal>
     );
 };

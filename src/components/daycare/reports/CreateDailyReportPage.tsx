@@ -1,4 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { TextAreaField } from '../ui/TextAreaField';
 import { SelectField } from '../ui/SelectField';
@@ -8,7 +10,7 @@ import type { Child, Staff, DailyReport } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
 import { uploadReportPhoto, uploadReportVideo } from '@/lib/storage';
 
-interface CreateOrEditDailyReportPageProps {
+interface CreateOrEditDailyReportModalProps {
     children: Child[];
     staff: Staff[];
     onAddDailyReport: (reportData: Omit<DailyReport, 'id' | 'created_at'>) => void;
@@ -19,7 +21,7 @@ interface CreateOrEditDailyReportPageProps {
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
-export const CreateDailyReportPage: React.FC<CreateOrEditDailyReportPageProps> = ({
+export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModalProps> = ({
     children, onAddDailyReport, onUpdateDailyReport, onCancel, currentUser, initialData, showAlert
 }) => {
     const isEditing = !!initialData;
@@ -43,6 +45,13 @@ export const CreateDailyReportPage: React.FC<CreateOrEditDailyReportPageProps> =
                 ...initialData,
                 report_date: formatDateForInput(initialData.report_date),
                 naps: initialData.naps && initialData.naps.length > 0 ? initialData.naps : [{ start: '', end: '' }],
+            });
+        } else {
+            setFormData({
+                child_id: '', report_date: formatDateForInput(new Date()), mood: 'Happy', staff_id: '',
+                meals: { breakfast: '', lunch: '', snack_am: '', snack_pm: '' },
+                naps: [{ start: '', end: '' }], activities: '', toileting_diapers: '',
+                supplies_needed: '', notes_for_parents: '', photo_url_1: null, photo_url_2: null, video_url_1: null, video_url_2: null
             });
         }
     }, [isEditing, initialData]);
@@ -110,9 +119,7 @@ export const CreateDailyReportPage: React.FC<CreateOrEditDailyReportPageProps> =
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Reports</button>
-            <h2 className="page-card-title form-page-title mt-4">{isEditing ? 'Edit Daily Report' : 'Create Daily Report'}</h2>
+        <Modal onClose={onCancel} title={isEditing ? 'Edit Daily Report' : 'Create Daily Report'} size="large">
             <form onSubmit={handleSubmit} className="form-layout">
                 <SelectField label="Child" id="child_id" name="child_id" value={formData.child_id} onChange={handleChange} required icon={Icons.Smile} disabled={isEditing}>
                     <option value="">Select Child</option>
@@ -153,6 +160,6 @@ export const CreateDailyReportPage: React.FC<CreateOrEditDailyReportPageProps> =
                 
                 <FormActions onCancel={onCancel} submitText={isEditing ? 'Save Changes' : 'Add Report'} submitIcon={isEditing ? Icons.CheckCircle : Icons.PlusCircle} loading={isUploading} />
             </form>
-        </div>
+        </Modal>
     );
 };

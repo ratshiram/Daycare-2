@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
@@ -10,12 +11,12 @@ interface AdminDailyReportsPageProps {
     loading: boolean;
     children: Child[];
     staff: Staff[];
-    onNavigateToCreateReport: (() => void) | null;
+    onOpenCreateReportModal: (() => void) | null;
     onViewReportDetails: (report: DailyReport) => void;
     onEditReport: ((report: DailyReport) => void) | null;
 }
 
-export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onNavigateToCreateReport, onViewReportDetails, onEditReport }) => {
+export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onOpenCreateReportModal, onViewReportDetails, onEditReport }) => {
     if (loading && (!Array.isArray(dailyReports) || dailyReports.length === 0)) return <Loading />;
 
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
@@ -32,8 +33,8 @@ export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ da
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Daily Reports</h2>
-                {onNavigateToCreateReport && (
-                    <button onClick={onNavigateToCreateReport} className="btn btn-primary btn-small">
+                {onOpenCreateReportModal && (
+                    <button onClick={onOpenCreateReportModal} className="btn btn-primary btn-small">
                         <Icons.PlusCircle size={18} /> Create Report
                     </button>
                 )}

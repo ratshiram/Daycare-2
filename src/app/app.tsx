@@ -14,22 +14,22 @@ import { TeacherDashboardPage } from '@/components/daycare/dashboards/TeacherDas
 import { ParentDashboardPage } from '@/components/daycare/dashboards/ParentDashboard';
 import { UnknownRolePage } from '@/components/daycare/dashboards/UnknownRole';
 import { ChildrenPage } from '@/components/daycare/children/ChildrenPage';
-import { AddChildPage } from '@/components/daycare/children/AddChildPage';
+import { AddChildModal } from '@/components/daycare/children/AddChildPage';
 import { EditChildModal } from '@/components/daycare/children/EditChildModal';
 import { StaffPage } from '@/components/daycare/staff/StaffPage';
-import { AddStaffPage } from '@/components/daycare/staff/AddStaffPage';
+import { AddStaffModal } from '@/components/daycare/staff/AddStaffPage';
 import { EditStaffModal } from '@/components/daycare/staff/EditStaffModal';
 import { AdminParentsPage } from '@/components/daycare/parents/AdminParentsPage';
-import { AddParentPage } from '@/components/daycare/parents/AddParentPage';
+import { AddParentModal } from '@/components/daycare/parents/AddParentPage';
 import { EditParentModal } from '@/components/daycare/parents/EditParentModal';
 import { RoomManagementPage } from '@/components/daycare/rooms/RoomManagementPage';
-import { AddRoomPage } from '@/components/daycare/rooms/AddRoomPage';
+import { AddRoomModal } from '@/components/daycare/rooms/AddRoomPage';
 import { EditRoomModal } from '@/components/daycare/rooms/EditRoomModal';
 import { AdminDailyReportsPage } from '@/components/daycare/reports/AdminDailyReportsPage';
-import { CreateDailyReportPage } from '@/components/daycare/reports/CreateDailyReportPage';
+import { CreateOrEditDailyReportModal } from '@/components/daycare/reports/CreateDailyReportPage';
 import { ViewDailyReportModal } from '@/components/daycare/reports/ViewDailyReportModal';
 import { AdminIncidentReportsPage } from '@/components/daycare/incidents/AdminIncidentReportsPage';
-import { LogIncidentPage } from '@/components/daycare/incidents/LogIncidentPage';
+import { LogIncidentModal } from '@/components/daycare/incidents/LogIncidentPage';
 import { ViewIncidentDetailsModal } from '@/components/daycare/incidents/ViewIncidentDetailsModal';
 import { ChildMedicationsPage } from '@/components/daycare/medications/ChildMedicationsPage';
 import { AddMedicationModal } from '@/components/daycare/medications/AddMedicationModal';
@@ -38,10 +38,10 @@ import { LogMedicationAdministrationModal } from '@/components/daycare/medicatio
 import { AdminAnnouncementsPage } from '@/components/daycare/announcements/AdminAnnouncementsPage';
 import { CreateAnnouncementPage } from '@/components/daycare/announcements/CreateAnnouncementPage';
 import { AdminBillingPage } from '@/components/daycare/billing/AdminBillingPage';
-import { CreateInvoicePage } from '@/components/daycare/billing/CreateInvoicePage';
+import { CreateInvoiceModal } from '@/components/daycare/billing/CreateInvoicePage';
 import { ViewInvoiceDetailsModal } from '@/components/daycare/billing/ViewInvoiceDetailsModal';
 import { AdminWaitlistPage } from '@/components/daycare/waitlist/AdminWaitlistPage';
-import { AddToWaitlistPage } from '@/components/daycare/waitlist/AddToWaitlistPage';
+import { AddOrEditWaitlistModal } from '@/components/daycare/waitlist/AddToWaitlistPage';
 import { AdminGalleryPage } from '@/components/daycare/gallery/AdminGalleryPage';
 import { useToast } from '@/hooks/use-toast';
 import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, WaitlistEntry } from '@/types';
@@ -96,11 +96,23 @@ const App = () => {
     });
 
     // Modal states & Edit states
+    const [showAddChildModal, setShowAddChildModal] = useState(false);
     const [showEditChildModal, setShowEditChildModal] = useState(false);
     const [childToEdit, setChildToEdit] = useState<Child | null>(null);
+    const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+    const [showEditStaffModal, setShowEditStaffModal] = useState(false);
+    const [staffToEdit, setStaffToEdit] = useState<Staff | null>(null);
+    const [showAddParentModal, setShowAddParentModal] = useState(false);
+    const [showEditParentModal, setShowEditParentModal] = useState(false);
+    const [parentToEdit, setParentToEdit] = useState<Parent | null>(null);
+    const [showAddRoomModal, setShowAddRoomModal] = useState(false);
+    const [showEditRoomModal, setShowEditRoomModal] = useState(false);
+    const [roomToEdit, setRoomToEdit] = useState<Room | null>(null);
+    const [showCreateReportModal, setShowCreateReportModal] = useState(false);
     const [showViewDailyReportModal, setShowViewDailyReportModal] = useState(false);
     const [reportToView, setReportToView] = useState<DailyReport | null>(null);
     const [reportToEdit, setReportToEdit] = useState<DailyReport | null>(null);
+    const [showLogIncidentModal, setShowLogIncidentModal] = useState(false);
     const [showViewIncidentModal, setShowViewIncidentModal] = useState(false);
     const [incidentToView, setIncidentToView] = useState<IncidentReport | null>(null);
     const [childForMedications, setChildForMedications] = useState<Child | null>(null);
@@ -110,16 +122,12 @@ const App = () => {
     const [showLogMedicationModal, setShowLogMedicationModal] = useState(false);
     const [medicationToLog, setMedicationToLog] = useState<Medication | null>(null);
     const [announcementToEdit, setAnnouncementToEdit] = useState<Announcement | null>(null);
-    const [waitlistEntryToEdit, setWaitlistEntryToEdit] = useState<WaitlistEntry | null>(null);
-    const [showEditStaffModal, setShowEditStaffModal] = useState(false);
-    const [staffToEdit, setStaffToEdit] = useState<Staff | null>(null);
-    const [showEditRoomModal, setShowEditRoomModal] = useState(false);
-    const [roomToEdit, setRoomToEdit] = useState<Room | null>(null);
+    const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
     const [showViewInvoiceModal, setShowViewInvoiceModal] = useState(false);
     const [invoiceToView, setInvoiceToView] = useState<Invoice | null>(null);
     const [parentDetailsForInvoice, setParentDetailsForInvoice] = useState<Parent | null>(null);
-    const [showEditParentModal, setShowEditParentModal] = useState(false);
-    const [parentToEdit, setParentToEdit] = useState<Parent | null>(null);
+    const [showAddWaitlistModal, setShowAddWaitlistModal] = useState(false);
+    const [waitlistEntryToEdit, setWaitlistEntryToEdit] = useState<WaitlistEntry | null>(null);
 
     const showAlert = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
         toast({
@@ -237,7 +245,7 @@ const App = () => {
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at'>) => {
         if (!childFormData.primary_parent_id) { showAlert("Primary Parent is required.", "error"); return; }
         if (childFormData.current_room_id === '') childFormData.current_room_id = null;
-        try { const { error } = await supabase.from('children').insert([childFormData]); if (error) throw error; showAlert('Child added successfully!'); setCurrentPage('Children');
+        try { const { error } = await supabase.from('children').insert([childFormData]); if (error) throw error; showAlert('Child added successfully!'); setShowAddChildModal(false);
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
       }, [showAlert]);
     
@@ -278,9 +286,9 @@ const App = () => {
             dataToInsert.user_id = dataToInsert.email === currentUser?.email ? currentUser.id : null;
             const {error}=await supabase.from('staff').insert([dataToInsert]);
             if(error) throw error;
-            showAlert('Staff added!'); setCurrentPage('Staff');
+            showAlert('Staff added!'); setShowAddStaffModal(false);
         } catch(e: any){ showAlert(`Add staff error: ${e.message}`,'error'); }
-    }, [showAlert, setCurrentPage, currentUser]);
+    }, [showAlert, currentUser]);
 
     const handleOpenEditStaffModal = useCallback((staffMember: Staff) => { setStaffToEdit(staffMember); setShowEditStaffModal(true); }, []);
     
@@ -304,9 +312,9 @@ const App = () => {
     }, [showAlert]);
     
     const addRoomToSupabase = useCallback(async (roomData: Omit<Room, 'id' | 'created_at'>) => { 
-        try {const {error} = await supabase.from('rooms').insert([roomData]); if(error) throw error; showAlert('Room added!'); setCurrentPage('Rooms'); 
+        try {const {error} = await supabase.from('rooms').insert([roomData]); if(error) throw error; showAlert('Room added!'); setShowAddRoomModal(false);
         } catch(e: any){showAlert(`Add room error: ${e.message}`,'error');}
-    }, [showAlert, setCurrentPage]);
+    }, [showAlert]);
 
     const handleOpenEditRoomModal = useCallback((room: Room) => { setRoomToEdit(room); setShowEditRoomModal(true); }, []);
 
@@ -325,13 +333,13 @@ const App = () => {
     const addDailyReportToSupabase = useCallback(async (reportData: Omit<DailyReport, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot create report: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...reportData, staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('daily_reports').insert([dataWithStaffId]); if (error) throw error; showAlert('Daily report added!'); setCurrentPage('AdminDailyReports');
+        try { const { error } = await supabase.from('daily_reports').insert([dataWithStaffId]); if (error) throw error; showAlert('Daily report added!'); setShowCreateReportModal(false);
         } catch (e: any) { showAlert(`Error adding daily report: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser, setCurrentPage]);
+    }, [showAlert, currentUser]);
     
     const handleViewReportDetails = useCallback((report: DailyReport) => { setReportToView(report); setShowViewDailyReportModal(true); }, []);
     
-    const handleEditReport = useCallback((report: DailyReport) => { setReportToEdit(report); setCurrentPage('CreateDailyReportPage'); }, []);
+    const handleEditReport = useCallback((report: DailyReport) => { setReportToEdit(report); setShowCreateReportModal(true); }, []);
 
     const updateDailyReportInSupabase = useCallback(async (reportData: DailyReport) => {
         if (!reportToEdit?.id) return;
@@ -340,7 +348,7 @@ const App = () => {
             const { error } = await supabase.from('daily_reports').update(dataToUpdate).eq('id', reportToEdit.id);
             if (error) throw error;
             showAlert('Daily report updated successfully!');
-            setCurrentPage('AdminDailyReports');
+            setShowCreateReportModal(false);
             setReportToEdit(null);
             fetchData('dailyReports', setDailyReports, 'daily_reports', { column: 'report_date', ascending: false });
         } catch (e: any) {
@@ -351,9 +359,9 @@ const App = () => {
     const addIncidentReportToSupabase = useCallback(async (incidentData: Omit<IncidentReport, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot log incident: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...incidentData, reported_by_staff_id: currentUser.staff_id };
-        try { const { error } = await supabase.from('incident_reports').insert([dataWithStaffId]); if (error) throw error; showAlert('Incident report logged!'); setCurrentPage('AdminIncidentReports');
+        try { const { error } = await supabase.from('incident_reports').insert([dataWithStaffId]); if (error) throw error; showAlert('Incident report logged!'); setShowLogIncidentModal(false);
         } catch (e: any) { showAlert(`Log incident error: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser, setCurrentPage]);
+    }, [showAlert, currentUser]);
     
     const handleViewIncidentDetails = useCallback((incident: IncidentReport) => { setIncidentToView(incident); setShowViewIncidentModal(true); }, []);
     
@@ -398,9 +406,9 @@ const App = () => {
         if (currentUser && ['admin', 'teacher', 'assistant'].includes(currentUser.role) && currentUser.staff_id) {
             dataWithCreator.created_by_staff_id = currentUser.staff_id;
         }
-        try { const { error } = await supabase.from('invoices').insert([dataWithCreator]); if (error) throw error; showAlert('Invoice created!'); setCurrentPage('AdminBilling');
+        try { const { error } = await supabase.from('invoices').insert([dataWithCreator]); if (error) throw error; showAlert('Invoice created!'); setShowCreateInvoiceModal(false);
         } catch (e: any) { showAlert(`Create invoice error: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser, setCurrentPage]);
+    }, [showAlert, currentUser]);
 
     const handleViewInvoiceDetails = useCallback(async (invoice: Invoice) => {
         setInvoiceToView(invoice);
@@ -420,9 +428,11 @@ const App = () => {
         setShowViewInvoiceModal(true);
     }, [children, showAlert]);
 
-    const handleNavigateToAddWaitlistEntry = useCallback(() => { setWaitlistEntryToEdit(null); setCurrentPage('AddToWaitlistPage'); }, [setCurrentPage]);
-    const handleEditWaitlistEntry = useCallback((entry: WaitlistEntry) => { setWaitlistEntryToEdit(entry); setCurrentPage('AddToWaitlistPage'); }, [setCurrentPage]);
-    const addOrUpdateWaitlistEntryToSupabase = useCallback(async (entryData: WaitlistEntry, isEditing: boolean) => { try { let error; if (isEditing) { const {id, ...dataToUpdate} = entryData; ({ error } = await supabase.from('waitlist_entries').update(dataToUpdate).eq('id', id)); } else { const {id, ...dataToInsert} = entryData; ({ error } = await supabase.from('waitlist_entries').insert([dataToInsert])); } if (error) throw error; showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`); setCurrentPage('AdminWaitlist'); setWaitlistEntryToEdit(null); } catch (e: any) { showAlert(`Waitlist error: ${e.message}`, 'error'); } }, [showAlert, setCurrentPage]);
+    const handleOpenAddWaitlistModal = useCallback(() => { setWaitlistEntryToEdit(null); setShowAddWaitlistModal(true); }, []);
+    const handleEditWaitlistEntry = useCallback((entry: WaitlistEntry) => { setWaitlistEntryToEdit(entry); setShowAddWaitlistModal(true); }, []);
+    
+    const addOrUpdateWaitlistEntryToSupabase = useCallback(async (entryData: WaitlistEntry, isEditing: boolean) => { try { let error; if (isEditing) { const {id, ...dataToUpdate} = entryData; ({ error } = await supabase.from('waitlist_entries').update(dataToUpdate).eq('id', id)); } else { const {id, ...dataToInsert} = entryData; ({ error } = await supabase.from('waitlist_entries').insert([dataToInsert])); } if (error) throw error; showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`); setShowAddWaitlistModal(false); setWaitlistEntryToEdit(null); } catch (e: any) { showAlert(`Waitlist error: ${e.message}`, 'error'); } }, [showAlert]);
+    
     const deleteWaitlistEntryFromSupabase = useCallback(async (entryId: string) => { if (!window.confirm("Remove from waitlist?")) return; try { const { error } = await supabase.from('waitlist_entries').delete().eq('id', entryId); if (error) throw error; showAlert('Waitlist entry removed!'); } catch (e: any) { showAlert(`Delete waitlist entry error: ${e.message}`, 'error'); } }, [showAlert]);
     
     const addParentToSupabase = useCallback(async (parentData: Omit<Parent, 'id' | 'created_at'>) => {
@@ -431,9 +441,9 @@ const App = () => {
             if (existingParent) { showAlert(`Parent with email ${parentData.email} already exists.`, 'warning'); return; }
             const { error } = await supabase.from('parents').insert([parentData]);
             if (error) throw error;
-            showAlert('Parent added successfully!'); setCurrentPage('AdminParents');
+            showAlert('Parent added successfully!'); setShowAddParentModal(false);
         } catch (e: any) { showAlert(`Error adding parent: ${e.message}`, 'error'); }
-    }, [showAlert, setCurrentPage]);
+    }, [showAlert]);
     
     const handleOpenEditParentModal = useCallback((parent: Parent) => { setParentToEdit(parent); setShowEditParentModal(true); }, []);
 
@@ -491,25 +501,17 @@ const App = () => {
             case 'admin':
                 switch (currentPage) {
                     case 'AdminDashboard': return <AdminDashboardPage />;
-                    case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children} onNavigateToAddChild={()=>setCurrentPage('AddChildPage')} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
-                    case 'AddChildPage': return <AddChildPage onAddChild={addChildToSupabase} onCancel={() => setCurrentPage('Children')} showAlert={showAlert} parentsList={parentsList} rooms={rooms} />;
-                    case 'Staff': return <StaffPage staffList={staff} loading={loadingData.staff} onNavigateToAddStaff={() => setCurrentPage('AddStaffPage')} onEditStaff={handleOpenEditStaffModal} onDeleteStaff={deleteStaffFromSupabase} rooms={rooms} />;
-                    case 'AddStaffPage': return <AddStaffPage onAddStaff={addStaffToSupabase} onCancel={() => setCurrentPage('Staff')} currentUser={currentUser} showAlert={showAlert} rooms={rooms} />;
-                    case 'AdminParents': return <AdminParentsPage parentsList={parentsList} loading={loadingData.parentsList} onNavigateToAddParent={() => setCurrentPage('AddParentPage')} onEditParent={handleOpenEditParentModal} onDeleteParent={deleteParentFromSupabase} />;
-                    case 'AddParentPage': return <AddParentPage onAddParent={addParentToSupabase} onCancel={() => setCurrentPage('AdminParents')} showAlert={showAlert} />;
-                    case 'Rooms': return <RoomManagementPage rooms={rooms} loading={loadingData.rooms} onNavigateToAddRoom={() => setCurrentPage('AddRoomPage')} onEditRoom={handleOpenEditRoomModal} onDeleteRoom={deleteRoomFromSupabase} />;
-                    case 'AddRoomPage': return <AddRoomPage onAddRoom={addRoomToSupabase} onCancel={() => setCurrentPage('Rooms')} />;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onNavigateToCreateReport={() => { setReportToEdit(null); setCurrentPage('CreateDailyReportPage');}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
-                    case 'CreateDailyReportPage': return <CreateDailyReportPage children={children} staff={staff} currentUser={currentUser} onAddDailyReport={addDailyReportToSupabase} onUpdateDailyReport={updateDailyReportInSupabase} initialData={reportToEdit} onCancel={() => { setReportToEdit(null); setCurrentPage('AdminDailyReports'); }} showAlert={showAlert} />;
-                    case 'AdminIncidentReports': return <AdminIncidentReportsPage incidentReports={incidentReports} children={children} staff={staff} loading={loadingData.incidentReports} onNavigateToLogIncident={() => setCurrentPage('LogIncidentPage')} onViewIncidentDetails={handleViewIncidentDetails} />;
-                    case 'LogIncidentPage': return <LogIncidentPage children={children} staff={staff} currentUser={currentUser} onLogIncident={addIncidentReportToSupabase} onCancel={() => setCurrentPage('AdminIncidentReports')} showAlert={showAlert} />;
+                    case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
+                    case 'Staff': return <StaffPage staffList={staff} loading={loadingData.staff} onOpenAddStaffModal={() => setShowAddStaffModal(true)} onEditStaff={handleOpenEditStaffModal} onDeleteStaff={deleteStaffFromSupabase} rooms={rooms} />;
+                    case 'AdminParents': return <AdminParentsPage parentsList={parentsList} loading={loadingData.parentsList} onOpenAddParentModal={() => setShowAddParentModal(true)} onEditParent={handleOpenEditParentModal} onDeleteParent={deleteParentFromSupabase} />;
+                    case 'Rooms': return <RoomManagementPage rooms={rooms} loading={loadingData.rooms} onOpenAddRoomModal={() => setShowAddRoomModal(true)} onEditRoom={handleOpenEditRoomModal} onDeleteRoom={deleteRoomFromSupabase} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
+                    case 'AdminIncidentReports': return <AdminIncidentReportsPage incidentReports={incidentReports} children={children} staff={staff} loading={loadingData.incidentReports} onOpenLogIncidentModal={() => setShowLogIncidentModal(true)} onViewIncidentDetails={handleViewIncidentDetails} />;
                     case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} medications={medications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('Children');}} /> : <Loading />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={handleNavigateToCreateAnnouncement} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
                     case 'CreateAnnouncementPage': return <CreateAnnouncementPage onAddAnnouncement={addAnnouncementToSupabase} onUpdateAnnouncement={updateAnnouncementInSupabase} onCancel={() => {setAnnouncementToEdit(null); setCurrentPage('AdminAnnouncements');}} currentUser={currentUser} initialData={announcementToEdit} showAlert={showAlert} />;
-                    case 'AdminBilling': return <AdminBillingPage invoices={invoices} children={children} loading={loadingData.invoices} onNavigateToCreateInvoice={() => setCurrentPage('CreateInvoicePage')} onViewInvoiceDetails={handleViewInvoiceDetails} />;
-                    case 'CreateInvoicePage': return <CreateInvoicePage children={children} onAddInvoice={addInvoiceToSupabase} onCancel={() => setCurrentPage('AdminBilling')} showAlert={showAlert} />;
-                    case 'AdminWaitlist': return <AdminWaitlistPage waitlistEntries={waitlistEntries} loading={loadingData.waitlistEntries} onNavigateToAddWaitlistEntry={handleNavigateToAddWaitlistEntry} onEditWaitlistEntry={handleEditWaitlistEntry} onDeleteWaitlistEntry={deleteWaitlistEntryFromSupabase} />;
-                    case 'AddToWaitlistPage': return <AddToWaitlistPage onAddOrUpdateWaitlistEntry={addOrUpdateWaitlistEntryToSupabase} onCancel={() => {setWaitlistEntryToEdit(null); setCurrentPage('AdminWaitlist');}} showAlert={showAlert} initialData={waitlistEntryToEdit} />;
+                    case 'AdminBilling': return <AdminBillingPage invoices={invoices} children={children} loading={loadingData.invoices} onOpenCreateInvoiceModal={() => setShowCreateInvoiceModal(true)} onViewInvoiceDetails={handleViewInvoiceDetails} />;
+                    case 'AdminWaitlist': return <AdminWaitlistPage waitlistEntries={waitlistEntries} loading={loadingData.waitlistEntries} onOpenAddWaitlistModal={handleOpenAddWaitlistModal} onEditWaitlistEntry={handleEditWaitlistEntry} onDeleteWaitlistEntry={deleteWaitlistEntryFromSupabase} />;
                     case 'AdminGallery': return <AdminGalleryPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || loadingData.children || loadingData.staff} currentUser={currentUser} />;
                     default: return <AdminDashboardPage />; 
                 }
@@ -517,8 +519,7 @@ const App = () => {
             case 'teacher':
                 switch (currentPage) {
                     case 'TeacherDashboard': return <TeacherDashboardPage />;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onNavigateToCreateReport={() => { setReportToEdit(null); setCurrentPage('CreateDailyReportPage');}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
-                    case 'CreateDailyReportPage': return <CreateDailyReportPage children={children} staff={staff} currentUser={currentUser} onAddDailyReport={addDailyReportToSupabase} onUpdateDailyReport={updateDailyReportInSupabase} initialData={reportToEdit} onCancel={() => { setReportToEdit(null); setCurrentPage('AdminDailyReports'); }} showAlert={showAlert} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
                     case 'AdminGallery': return <AdminGalleryPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || loadingData.children || loadingData.staff} currentUser={currentUser} />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements} onNavigateToCreateAnnouncement={handleNavigateToCreateAnnouncement} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
                     default: return <TeacherDashboardPage />;
@@ -527,8 +528,7 @@ const App = () => {
             case 'assistant':
                 switch (currentPage) {
                     case 'AssistantDashboard': return <div>Assistant Dashboard</div>;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onNavigateToCreateReport={() => setCurrentPage('CreateDailyReportPage')} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
-                    case 'CreateDailyReportPage': return <CreateDailyReportPage children={children} staff={staff} currentUser={currentUser} onAddDailyReport={addDailyReportToSupabase} onUpdateDailyReport={updateDailyReportInSupabase} initialData={reportToEdit} onCancel={() => setCurrentPage('AdminDailyReports')} showAlert={showAlert} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports} onOpenCreateReportModal={() => setShowCreateReportModal(true)} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
                     case 'AdminGallery': return <AdminGalleryPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || loadingData.children || loadingData.staff} currentUser={currentUser} />;
                     default: return <div>Assistant Dashboard</div>;
                 }
@@ -619,16 +619,24 @@ const App = () => {
                     )}
                     <footer className="app-footer">Evergreen Tots 2025 &copy; Evergreen Tots App</footer>
                     
+                    {session && showAddChildModal && <AddChildModal onAddChild={addChildToSupabase} onClose={() => setShowAddChildModal(false)} showAlert={showAlert} parentsList={parentsList} rooms={rooms} />}
                     {session && showEditChildModal && childToEdit && <EditChildModal child={childToEdit} parentsList={parentsList} showAlert={showAlert} rooms={rooms} onClose={() => { setShowEditChildModal(false); setChildToEdit(null); }} onUpdateChild={updateChildInSupabase} />}
+                    {session && showAddStaffModal && <AddStaffModal onAddStaff={addStaffToSupabase} onClose={() => setShowAddStaffModal(false)} currentUser={currentUser} showAlert={showAlert} rooms={rooms} />}
+                    {session && showEditStaffModal && staffToEdit && <EditStaffModal staffMember={staffToEdit} rooms={rooms} onClose={() => { setShowEditStaffModal(false); setStaffToEdit(null); }} onUpdateStaff={updateStaffInSupabase} showAlert={showAlert} />}
+                    {session && showAddParentModal && <AddParentModal onAddParent={addParentToSupabase} onClose={() => setShowAddParentModal(false)} showAlert={showAlert} />}
+                    {session && showEditParentModal && parentToEdit && <EditParentModal parent={parentToEdit} onClose={() => { setShowEditParentModal(false); setParentToEdit(null);}} onUpdateParent={updateParentInSupabase} showAlert={showAlert} />}
+                    {session && showAddRoomModal && <AddRoomModal onAddRoom={addRoomToSupabase} onClose={() => setShowAddRoomModal(false)} />}
+                    {session && showEditRoomModal && roomToEdit && <EditRoomModal room={roomToEdit} onClose={() => { setShowEditRoomModal(false); setRoomToEdit(null); }} onUpdateRoom={updateRoomInSupabase} showAlert={showAlert} />}
+                    {session && showCreateReportModal && <CreateOrEditDailyReportModal children={children} staff={staff} currentUser={currentUser} onAddDailyReport={addDailyReportToSupabase} onUpdateDailyReport={updateDailyReportInSupabase} initialData={reportToEdit} onCancel={() => { setReportToEdit(null); setShowCreateReportModal(false); }} showAlert={showAlert} />}
                     {session && showViewDailyReportModal && reportToView && <ViewDailyReportModal report={reportToView} child={children.find(c => c.id === reportToView.child_id)} staff={staff} onClose={() => { setShowViewDailyReportModal(false); setReportToView(null); }} />}
+                    {session && showLogIncidentModal && <LogIncidentModal children={children} staff={staff} currentUser={currentUser} onLogIncident={addIncidentReportToSupabase} onCancel={() => setShowLogIncidentModal(false)} showAlert={showAlert} />}
                     {session && showViewIncidentModal && incidentToView && <ViewIncidentDetailsModal incident={incidentToView} child={children.find(c => c.id === incidentToView.child_id)} reportedByStaff={staff.find(s => s.id === incidentToView.reported_by_staff_id)} onClose={() => { setShowViewIncidentModal(false); setIncidentToView(null); }} />}
                     {session && showAddMedicationModal && childForMedications && <AddMedicationModal childId={childForMedications.id} onClose={() => setShowAddMedicationModal(false)} onAddMedication={addMedicationToSupabase} showAlert={showAlert} />}
                     {session && showEditMedicationModal && medicationToEdit && <EditMedicationModal medication={medicationToEdit} onClose={() => {setShowEditMedicationModal(false); setMedicationToEdit(null);}} onUpdateMedication={updateMedicationInSupabase} showAlert={showAlert} />}
                     {session && showLogMedicationModal && medicationToLog && childForMedications && <LogMedicationAdministrationModal medicationToLog={medicationToLog} childId={childForMedications.id} onClose={() => {setShowLogMedicationModal(false); setMedicationToLog(null);}} onLogAdministration={addMedicationLogToSupabase} currentUser={currentUser} showAlert={showAlert} />}
-                    {session && showEditStaffModal && staffToEdit && <EditStaffModal staffMember={staffToEdit} rooms={rooms} onClose={() => { setShowEditStaffModal(false); setStaffToEdit(null); }} onUpdateStaff={updateStaffInSupabase} showAlert={showAlert} />}
-                    {session && showEditRoomModal && roomToEdit && <EditRoomModal room={roomToEdit} onClose={() => { setShowEditRoomModal(false); setRoomToEdit(null); }} onUpdateRoom={updateRoomInSupabase} showAlert={showAlert} />}
+                    {session && showCreateInvoiceModal && <CreateInvoiceModal children={children} onAddInvoice={addInvoiceToSupabase} onCancel={() => setShowCreateInvoiceModal(false)} showAlert={showAlert} />}
                     {session && showViewInvoiceModal && invoiceToView && <ViewInvoiceDetailsModal invoice={invoiceToView} child={children.find(c => c.id === invoiceToView.child_id)} parentDetails={parentDetailsForInvoice} onClose={() => { setShowViewInvoiceModal(false); setInvoiceToView(null); setParentDetailsForInvoice(null); }} />}
-                    {session && showEditParentModal && parentToEdit && <EditParentModal parent={parentToEdit} onClose={() => { setShowEditParentModal(false); setParentToEdit(null);}} onUpdateParent={updateParentInSupabase} showAlert={showAlert} />}
+                    {session && showAddWaitlistModal && <AddOrEditWaitlistModal onAddOrUpdateWaitlistEntry={addOrUpdateWaitlistEntryToSupabase} onCancel={() => {setWaitlistEntryToEdit(null); setShowAddWaitlistModal(false);}} showAlert={showAlert} initialData={waitlistEntryToEdit} />}
                 </div>
             </AppStateContext.Provider>
         </ErrorBoundary>

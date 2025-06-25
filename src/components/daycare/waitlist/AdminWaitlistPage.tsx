@@ -9,13 +9,13 @@ import Loading from '@/app/loading';
 interface AdminWaitlistPageProps {
     waitlistEntries: WaitlistEntry[];
     loading: boolean;
-    onNavigateToAddWaitlistEntry: () => void;
+    onOpenAddWaitlistModal: () => void;
     onEditWaitlistEntry: (entry: WaitlistEntry) => void;
     onDeleteWaitlistEntry: (entryId: string) => void;
 }
 
 export const AdminWaitlistPage: React.FC<AdminWaitlistPageProps> = ({
-    waitlistEntries, loading, onNavigateToAddWaitlistEntry, onEditWaitlistEntry, onDeleteWaitlistEntry
+    waitlistEntries, loading, onOpenAddWaitlistModal, onEditWaitlistEntry, onDeleteWaitlistEntry
 }) => {
     if (loading && (!Array.isArray(waitlistEntries) || waitlistEntries.length === 0)) return <Loading />;
 
@@ -23,7 +23,7 @@ export const AdminWaitlistPage: React.FC<AdminWaitlistPageProps> = ({
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Waitlist Management</h2>
-                <button onClick={onNavigateToAddWaitlistEntry} className="btn btn-primary btn-small">
+                <button onClick={onOpenAddWaitlistModal} className="btn btn-primary btn-small">
                     <Icons.PlusCircle size={18} /> Add to Waitlist
                 </button>
             </div>

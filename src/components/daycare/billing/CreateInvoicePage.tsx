@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Modal } from '../ui/Modal';
 import { InputField } from '../ui/InputField';
 import { TextAreaField } from '../ui/TextAreaField';
 import { SelectField } from '../ui/SelectField';
@@ -8,14 +9,14 @@ import { Icons } from '@/components/Icons';
 import type { Child, Invoice } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
 
-interface CreateInvoicePageProps {
+interface CreateInvoiceModalProps {
     children: Child[];
     onAddInvoice: (invoiceData: Omit<Invoice, 'id' | 'created_at'>) => void;
     onCancel: () => void;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
 }
 
-export const CreateInvoicePage: React.FC<CreateInvoicePageProps> = ({ children, onAddInvoice, onCancel, showAlert }) => {
+export const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({ children, onAddInvoice, onCancel, showAlert }) => {
     const [formData, setFormData] = useState<Omit<Invoice, 'id' | 'created_at'>>({
         child_id: '',
         invoice_number: `INV-${Date.now()}`,
@@ -61,9 +62,7 @@ export const CreateInvoicePage: React.FC<CreateInvoicePageProps> = ({ children, 
     };
 
     return (
-        <div className="page-card form-page-card">
-            <button onClick={onCancel} className="btn btn-secondary btn-small btn-back"><Icons.ArrowLeft size={18} /> Back to Billing</button>
-            <h2 className="page-card-title form-page-title mt-4">Create New Invoice</h2>
+        <Modal onClose={onCancel} title="Create New Invoice" size="large">
             <form onSubmit={handleSubmit} className="form-layout">
                 <SelectField label="Child" name="child_id" value={formData.child_id} onChange={handleChange} required icon={Icons.Smile}>
                     <option value="">Select Child</option>
@@ -95,6 +94,6 @@ export const CreateInvoicePage: React.FC<CreateInvoicePageProps> = ({ children, 
                 
                 <FormActions onCancel={onCancel} submitText="Create Invoice" submitIcon={Icons.PlusCircle} />
             </form>
-        </div>
+        </Modal>
     );
 };

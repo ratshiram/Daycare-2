@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
@@ -7,21 +8,21 @@ import Loading from '@/app/loading';
 interface ChildrenPageProps {
     childrenList: Child[];
     loading: boolean;
-    onNavigateToAddChild: () => void;
+    onOpenAddChildModal: () => void;
     onEditChild: (child: Child) => void;
     onDeleteChild: (childId: string) => void;
     onToggleCheckIn: (childId: string) => void;
     onNavigateToChildMedications: (child: Child) => void;
 }
 
-export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loading, onNavigateToAddChild, onEditChild, onDeleteChild, onToggleCheckIn, onNavigateToChildMedications }) => {
+export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loading, onOpenAddChildModal, onEditChild, onDeleteChild, onToggleCheckIn, onNavigateToChildMedications }) => {
     if (loading && (!Array.isArray(childrenList) || childrenList.length === 0)) return <Loading />;
     
     return (
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Children</h2>
-                <button onClick={onNavigateToAddChild} className="btn btn-primary btn-small">
+                <button onClick={onOpenAddChildModal} className="btn btn-primary btn-small">
                     <Icons.UserPlus size={18} /> Add New Child
                 </button>
             </div>

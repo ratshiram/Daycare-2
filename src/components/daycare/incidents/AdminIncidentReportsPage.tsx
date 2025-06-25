@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
@@ -10,11 +11,11 @@ interface AdminIncidentReportsPageProps {
     loading: boolean;
     children: Child[];
     staff: Staff[];
-    onNavigateToLogIncident: () => void;
+    onOpenLogIncidentModal: () => void;
     onViewIncidentDetails: (incident: IncidentReport) => void;
 }
 
-export const AdminIncidentReportsPage: React.FC<AdminIncidentReportsPageProps> = ({ incidentReports, loading, children, staff, onNavigateToLogIncident, onViewIncidentDetails }) => {
+export const AdminIncidentReportsPage: React.FC<AdminIncidentReportsPageProps> = ({ incidentReports, loading, children, staff, onOpenLogIncidentModal, onViewIncidentDetails }) => {
     if (loading && (!Array.isArray(incidentReports) || incidentReports.length === 0)) return <Loading />;
 
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
@@ -31,7 +32,7 @@ export const AdminIncidentReportsPage: React.FC<AdminIncidentReportsPageProps> =
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Incident Reports</h2>
-                <button onClick={onNavigateToLogIncident} className="btn btn-primary btn-small">
+                <button onClick={onOpenLogIncidentModal} className="btn btn-primary btn-small">
                     <Icons.PlusCircle size={18} /> Log New Incident
                 </button>
             </div>

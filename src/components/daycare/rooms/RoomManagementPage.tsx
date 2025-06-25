@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
@@ -7,19 +8,19 @@ import Loading from '@/app/loading';
 interface RoomManagementPageProps {
     rooms: Room[];
     loading: boolean;
-    onNavigateToAddRoom: () => void;
+    onOpenAddRoomModal: () => void;
     onEditRoom: (room: Room) => void;
     onDeleteRoom: (roomId: string) => void;
 }
 
-export const RoomManagementPage: React.FC<RoomManagementPageProps> = ({ rooms, loading, onNavigateToAddRoom, onEditRoom, onDeleteRoom }) => {
+export const RoomManagementPage: React.FC<RoomManagementPageProps> = ({ rooms, loading, onOpenAddRoomModal, onEditRoom, onDeleteRoom }) => {
     if (loading && (!Array.isArray(rooms) || rooms.length === 0)) return <Loading />;
 
     return (
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Manage Rooms</h2>
-                <button onClick={onNavigateToAddRoom} className="btn btn-primary btn-small">
+                <button onClick={onOpenAddRoomModal} className="btn btn-primary btn-small">
                     <Icons.PlusCircle size={18} /> Add New Room
                 </button>
             </div>
