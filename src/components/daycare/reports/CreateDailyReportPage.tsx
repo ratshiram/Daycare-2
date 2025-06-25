@@ -136,7 +136,7 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
 
                 <h3 className="form-section-title">Naps</h3>
                 {formData.naps?.map((nap, index) => (
-                    <div key={index} className="form-row grid grid-cols-2 gap-4 col-span-2">
+                    <div key={index} className="form-row grid grid-cols-1 md:grid-cols-2 gap-4 col-span-2">
                         <InputField label={`Nap ${index + 1} Start`} type="time" value={nap.start || ''} onChange={(e) => handleNapChange(e, index, 'start')} />
                         <InputField label={`Nap ${index + 1} End`} type="time" value={nap.end || ''} onChange={(e) => handleNapChange(e, index, 'end')} />
                     </div>
