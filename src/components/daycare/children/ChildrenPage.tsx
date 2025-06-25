@@ -50,8 +50,8 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                             {Array.isArray(childrenList) && childrenList.map(child => {
                                 const isCheckedIn = child.check_in_time && !child.check_out_time;
                                 const primaryParentInfo = child.primary_parent;
-                                const secondaryParentInfo = child.secondary_parent;
-                                const parentDisplay = [primaryParentInfo, secondaryParentInfo]
+                                const parent2Info = child.parent_2;
+                                const parentDisplay = [primaryParentInfo, parent2Info]
                                     .filter((p): p is Parent => !!p)
                                     .map(p => `${p.first_name || ''} ${p.last_name || ''}`.trim())
                                     .join(' & ') || 'N/A';

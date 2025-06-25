@@ -35,10 +35,10 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
         const { name, value, type } = e.target;
         const val = type === 'number' ? (value === '' ? null : parseInt(value, 10)) : value;
         
-        if (name === 'primary_parent_id' && value === formData.secondary_parent_id) {
-            setFormData(prev => ({ ...prev, secondary_parent_id: '', [name]: val }));
-        } else if (name === 'secondary_parent_id' && value === formData.primary_parent_id) {
-            showAlert("Primary and secondary parent cannot be the same.", "warning");
+        if (name === 'primary_parent_id' && value === formData.parent_2_id) {
+            setFormData(prev => ({ ...prev, parent_2_id: '', [name]: val }));
+        } else if (name === 'parent_2_id' && value === formData.primary_parent_id) {
+            showAlert("Primary and Parent 2 cannot be the same.", "warning");
         } else {
              setFormData(prev => ({ ...prev, [name]: val }));
         }
@@ -62,7 +62,7 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
 
     if (!child) return null;
 
-    const availableSecondaryParents = parentsList.filter(p => p.id !== formData.primary_parent_id);
+    const availableOtherParents = parentsList.filter(p => p.id !== formData.primary_parent_id);
 
     return (
         <Modal onClose={onClose} title={`Edit ${child.name || 'Child'}`} size="large">
@@ -81,9 +81,9 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
                         <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
                     ))}
                 </SelectField>
-                 <SelectField label="Secondary Parent (Optional)" name="secondary_parent_id" value={formData.secondary_parent_id || ''} onChange={handleChange} icon={Icons.UserCog}>
+                 <SelectField label="Parent 2 (Optional)" name="parent_2_id" value={formData.parent_2_id || ''} onChange={handleChange} icon={Icons.UserCog}>
                     <option value="">Select a Parent</option>
-                    {availableSecondaryParents.map(parent => (
+                    {availableOtherParents.map(parent => (
                         <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
                     ))}
                 </SelectField>
