@@ -24,7 +24,6 @@ export interface Child extends Base {
     age: number | null;
     current_room_id?: string | null;
     primary_parent_id?: string | null;
-    parent_2_id?: string | null;
     emergency_contact?: string | null;
     allergies?: string | null;
     notes?: string | null;
@@ -34,7 +33,6 @@ export interface Child extends Base {
     check_in_time?: string | null;
     check_out_time?: string | null;
     primary_parent?: Parent | null; 
-    parent_2?: Parent | null;
 }
 
 export interface Staff extends Base {

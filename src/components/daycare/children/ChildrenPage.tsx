@@ -41,7 +41,7 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                             <tr>
                                 <th className="th-cell">Name</th>
                                 <th className="th-cell th-sm-hidden">Age</th>
-                                <th className="th-cell th-md-hidden">Parents</th>
+                                <th className="th-cell th-md-hidden">Parent</th>
                                 <th className="th-cell th-md-hidden">Status</th>
                                 <th className="th-cell th-actions">Actions</th>
                             </tr>
@@ -50,11 +50,9 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                             {Array.isArray(childrenList) && childrenList.map(child => {
                                 const isCheckedIn = child.check_in_time && !child.check_out_time;
                                 const primaryParentInfo = child.primary_parent;
-                                const parent2Info = child.parent_2;
-                                const parentDisplay = [primaryParentInfo, parent2Info]
-                                    .filter((p): p is Parent => !!p)
-                                    .map(p => `${p.first_name || ''} ${p.last_name || ''}`.trim())
-                                    .join(' & ') || 'N/A';
+                                const parentDisplay = primaryParentInfo
+                                    ? `${primaryParentInfo.first_name || ''} ${primaryParentInfo.last_name || ''}`.trim()
+                                    : 'N/A';
                                 
                                 return (
                                     <tr key={child.id} className="table-row">

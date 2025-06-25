@@ -34,14 +34,7 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         const val = type === 'number' ? (value === '' ? null : parseInt(value, 10)) : value;
-        
-        if (name === 'primary_parent_id' && value === formData.parent_2_id) {
-            setFormData(prev => ({ ...prev, parent_2_id: '', [name]: val }));
-        } else if (name === 'parent_2_id' && value === formData.primary_parent_id) {
-            showAlert("Primary and Parent 2 cannot be the same.", "warning");
-        } else {
-             setFormData(prev => ({ ...prev, [name]: val }));
-        }
+        setFormData(prev => ({ ...prev, [name]: val }));
     };
 
     const handleJsonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: 'medical_info' | 'billing') => {
@@ -62,8 +55,6 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
 
     if (!child) return null;
 
-    const availableOtherParents = parentsList.filter(p => p.id !== formData.primary_parent_id);
-
     return (
         <Modal onClose={onClose} title={`Edit ${child.name || 'Child'}`} size="large">
             <form onSubmit={handleSubmit} className="form-layout modal-form">
@@ -78,12 +69,6 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
                  <SelectField label="Primary Parent" name="primary_parent_id" value={formData.primary_parent_id || ''} onChange={handleChange} required icon={Icons.UserCog}>
                     <option value="">Select a Parent</option>
                     {Array.isArray(parentsList) && parentsList.map(parent => (
-                        <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
-                    ))}
-                </SelectField>
-                 <SelectField label="Parent 2 (Optional)" name="parent_2_id" value={formData.parent_2_id || ''} onChange={handleChange} icon={Icons.UserCog}>
-                    <option value="">Select a Parent</option>
-                    {availableOtherParents.map(parent => (
                         <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
                     ))}
                 </SelectField>

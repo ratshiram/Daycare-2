@@ -25,7 +25,7 @@ export const CommunicationsPage: React.FC = () => {
     const getVisibleChildren = () => {
         if (!Array.isArray(children)) return [];
         if (currentUser.role === 'parent') {
-            return children.filter(c => c.primary_parent_id === currentUser.profileId || c.secondary_parent_id === currentUser.profileId);
+            return children.filter(c => c.primary_parent_id === currentUser.profileId);
         }
         return children.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
     };
