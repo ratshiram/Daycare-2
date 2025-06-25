@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { InputField } from '../ui/InputField';
 import { Icons } from '@/components/Icons';
@@ -32,7 +33,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSignUp, onSignIn, loading 
             <div className="auth-card w-full max-w-md p-8 bg-card rounded-xl shadow-2xl border">
                 <div className="auth-logo-wrapper text-center mb-6">
                     <img
-                        src="https://placehold.co/150x50/87CEEB/FFFFFF?text=Evergreen+Tots"
+                        src="/logo.png"
                         data-ai-hint="evergreen tree logo"
                         alt="Evergreen Tots App Logo"
                         className="auth-logo-image inline-block"
