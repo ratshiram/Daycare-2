@@ -145,6 +145,24 @@ const App = () => {
     
     // --- Centralized Data Loading Effect ---
     useEffect(() => {
+        const fetchUserProfile = async (user: User) => {
+            if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
+            try {
+                const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
+                if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
+                if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
+
+                const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
+                if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
+                if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
+
+                return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
+            } catch (e) {
+                console.error("Exception fetching user profile:", e);
+                return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
+            }
+        };
+
         const fetchData = async (dataType: string, setDataCallback: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
             setLoadingData(prev => ({...prev, [dataType]: true}));
             try {
@@ -190,56 +208,45 @@ const App = () => {
                 showAlert(`An error occurred while loading initial data: ${e.message}`, 'error');
             }
         };
-
-        const fetchUserProfile = async (user: User) => {
-            if (!user) return { role: 'unknown', name: 'User', profileId: null, staff_id: null };
-            try {
-                const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', user.id).single();
-                if (staffError && staffError.code !== 'PGRST116') console.error("Error fetching staff profile:", staffError);
-                if (staffProfile) return { role: staffProfile.role.toLowerCase(), name: staffProfile.name, profileId: staffProfile.id, staff_id: staffProfile.id };
-
-                const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', user.id).single();
-                if (parentError && parentError.code !== 'PGRST116') console.error("Error fetching parent profile:", parentError);
-                if (parentProfile) return { role: 'parent', name: `${parentProfile.first_name || ''} ${parentProfile.last_name || ''}`.trim(), profileId: parentProfile.id, staff_id: null };
-
-                return { role: 'unknown_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-            } catch (e) {
-                console.error("Exception fetching user profile:", e);
-                return { role: 'exception_profile', name: user.email || 'Unknown', profileId: null, staff_id: null };
-            }
-        };
         
         const processSessionChange = async (sessionData: Session | null) => {
             setAppIsLoading(true);
-            setSession(sessionData);
+            try {
+                setSession(sessionData);
 
-            if (sessionData?.user) {
-                const userProfileDetails = await fetchUserProfile(sessionData.user);
-                setCurrentUser({ ...sessionData.user, ...userProfileDetails } as CurrentUser);
-                setAppMode(userProfileDetails.role);
+                if (sessionData?.user) {
+                    const userProfileDetails = await fetchUserProfile(sessionData.user);
+                    setCurrentUser({ ...sessionData.user, ...userProfileDetails } as CurrentUser);
+                    setAppMode(userProfileDetails.role);
 
-                let initialPage = '';
-                switch (userProfileDetails.role) {
-                    case 'admin': initialPage = 'AdminDashboard'; break;
-                    case 'teacher': initialPage = 'TeacherDashboard'; break;
-                    case 'assistant': initialPage = 'AssistantDashboard'; break;
-                    case 'parent': initialPage = 'ParentDashboard'; break;
-                    default: initialPage = 'UnknownRolePage';
+                    let initialPage = '';
+                    switch (userProfileDetails.role) {
+                        case 'admin': initialPage = 'AdminDashboard'; break;
+                        case 'teacher': initialPage = 'TeacherDashboard'; break;
+                        case 'assistant': initialPage = 'AssistantDashboard'; break;
+                        case 'parent': initialPage = 'ParentDashboard'; break;
+                        default: initialPage = 'UnknownRolePage';
+                    }
+                    setCurrentPage(initialPage);
+                    
+                    await fetchAllDataForRole(userProfileDetails.role);
+
+                } else {
+                    setAppMode('auth');
+                    setCurrentUser(null);
+                    setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
+                    setIncidentReports([]); setMedications([]); setMedicationLogs([]);
+                    setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
+                    setParentsList([]); setMessages([]);
+                    setCurrentPage('');
                 }
-                setCurrentPage(initialPage);
-                
-                await fetchAllDataForRole(userProfileDetails.role);
-
-            } else {
+            } catch (error) {
+                console.error("A critical error occurred during session processing:", error);
+                showAlert("There was an error loading the application. Please try refreshing.", 'error');
                 setAppMode('auth');
-                setCurrentUser(null);
-                setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
-                setIncidentReports([]); setMedications([]); setMedicationLogs([]);
-                setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
-                setParentsList([]); setMessages([]);
-                setCurrentPage('');
+            } finally {
+                setAppIsLoading(false);
             }
-            setAppIsLoading(false);
         };
 
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
