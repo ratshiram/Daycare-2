@@ -1,4 +1,5 @@
 
+
 export interface Base {
     id: string;
     created_at: string;
@@ -22,6 +23,7 @@ export interface Child extends Base {
     name: string;
     age: number | null;
     current_room_id?: string | null;
+    primary_parent_id?: string | null;
     emergency_contact?: string | null;
     allergies?: string | null;
     notes?: string | null;
@@ -30,11 +32,7 @@ export interface Child extends Base {
     billing?: any;
     check_in_time?: string | null;
     check_out_time?: string | null;
-    child_parents: {
-        is_primary: boolean;
-        parent_id: string;
-        parents: Parent; // Joined parent data
-    }[];
+    parents?: Parent | null; // For joined data
 }
 
 export interface Staff extends Base {

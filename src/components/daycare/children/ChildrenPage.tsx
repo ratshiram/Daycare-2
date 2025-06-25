@@ -49,7 +49,7 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                         <tbody>
                             {Array.isArray(childrenList) && childrenList.map(child => {
                                 const isCheckedIn = child.check_in_time && !child.check_out_time;
-                                const primaryParentInfo = child.child_parents?.find(cp => cp.is_primary)?.parents;
+                                const primaryParentInfo = child.parents;
                                 const parentDisplay = primaryParentInfo ? `${primaryParentInfo.first_name || ''} ${primaryParentInfo.last_name || ''}`.trim() : 'N/A';
                                 
                                 return (

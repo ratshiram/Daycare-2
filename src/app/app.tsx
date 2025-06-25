@@ -182,7 +182,7 @@ const App = () => {
                 const promises = [
                     fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
                     fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
-                    fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+                    fetchData('children', setChildren, supabase.from('children').select('*, parents:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
                     fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
                     fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
                 ];
@@ -272,54 +272,38 @@ const App = () => {
     }, [showAlert]);
     
     // --- ALL CRUD OPERATIONS ---
-    const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'child_parents'>, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
-        if (parentsToLink.length === 0) { showAlert("At least one parent must be linked.", "error"); return; }
-        if (parentsToLink.filter(p => p.is_primary).length !== 1) { showAlert("Exactly one parent must be marked as primary.", "error"); return; }
+    const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'parents'>) => {
+        if (!childFormData.primary_parent_id) { showAlert("A primary parent must be selected.", "error"); return; }
         if (childFormData.current_room_id === '') childFormData.current_room_id = null;
         
         try { 
             const { data: newChild, error: childError } = await supabase.from('children').insert([childFormData]).select().single();
             if (childError || !newChild) throw childError || new Error("Failed to create child record.");
     
-            const childParentLinks = parentsToLink.map(p => ({ child_id: newChild.id, parent_id: p.parent_id, is_primary: p.is_primary }));
-            const { error: linkError } = await supabase.from('child_parents').insert(childParentLinks);
-            if (linkError) {
-                await supabase.from('children').delete().eq('id', newChild.id);
-                throw linkError;
-            }
-    
             showAlert('Child added successfully!'); 
             setShowAddChildModal(false);
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, parents:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
     }, [showAlert, fetchData]);
     
     const handleOpenEditChildModal = useCallback((child: Child) => { setChildToEdit(child); setShowEditChildModal(true); }, []);
     
-    const updateChildInSupabase = useCallback(async (updatedChildData: Child, parentsToLink: {parent_id: string, is_primary: boolean}[]) => {
+    const updateChildInSupabase = useCallback(async (updatedChildData: Child) => {
         if (!childToEdit?.id) return;
-        if (parentsToLink.length === 0) { showAlert("At least one parent must be linked.", "error"); return; }
-        if (parentsToLink.filter(p => p.is_primary).length !== 1) { showAlert("Exactly one parent must be marked as primary.", "error"); return; }
+        if (!updatedChildData.primary_parent_id) { showAlert("A primary parent must be selected.", "error"); return; }
         
         try { 
-            const { id, child_parents, ...dataToUpdate } = updatedChildData;
+            const { id, parents, ...dataToUpdate } = updatedChildData;
             if ('current_room_id' in dataToUpdate && dataToUpdate.current_room_id === '') {
                 (dataToUpdate as any).current_room_id = null;
             }
             const { error: childUpdateError } = await supabase.from('children').update(dataToUpdate).eq('id', childToEdit.id); 
             if (childUpdateError) throw childUpdateError; 
 
-            const { error: deleteLinksError } = await supabase.from('child_parents').delete().eq('child_id', childToEdit.id);
-            if (deleteLinksError) throw deleteLinksError;
-
-            const newChildParentLinks = parentsToLink.map(p => ({ child_id: childToEdit.id, parent_id: p.parent_id, is_primary: p.is_primary }));
-            const { error: newLinksError } = await supabase.from('child_parents').insert(newChildParentLinks);
-            if (newLinksError) throw newLinksError;
-
             showAlert('Child updated!'); 
             setShowEditChildModal(false); 
             setChildToEdit(null);
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, parents:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch(e: any){ showAlert(`Update child error: ${e.message}`,'error'); }
     }, [showAlert, childToEdit, fetchData]);
     
@@ -329,7 +313,7 @@ const App = () => {
             const {error}=await supabase.from('children').delete().eq('id', childId); 
             if(error) throw error; 
             showAlert('Child deleted!');
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, parents:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Delete child error: ${e.message}`,'error');}
     }, [showAlert, fetchData]);
 
@@ -339,7 +323,7 @@ const App = () => {
         const now = new Date().toISOString(); 
         const wasCheckedIn = child.check_in_time && !child.check_out_time; 
         const updates = {check_in_time: wasCheckedIn ? child.check_in_time : now, check_out_time: wasCheckedIn ? now : null}; 
-        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, parents:primary_parent_id(*), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Check-in/out error: ${e.message}`,'error');}
     }, [showAlert, children, fetchData]);
       
@@ -598,16 +582,15 @@ const App = () => {
     const handleViewInvoiceDetails = useCallback(async (invoice: Invoice) => {
         setInvoiceToView(invoice);
         const childForInvoice = children.find(c => c.id === invoice.child_id);
-        if (childForInvoice) {
-            const primaryParentLink = childForInvoice.child_parents?.find(cp => cp.is_primary);
-            const primaryParent = primaryParentLink?.parents;
-            if (primaryParent) {
-                setLoadingData(prev => ({...prev, parentForInvoice: true}));
-                setParentDetailsForInvoice(primaryParent);
-                setLoadingData(prev => ({...prev, parentForInvoice: false}));
-            } else {
-                setParentDetailsForInvoice(null);
-            }
+        if (childForInvoice && childForInvoice.parents) {
+            setParentDetailsForInvoice(childForInvoice.parents);
+        } else if (childForInvoice?.primary_parent_id) {
+            setLoadingData(prev => ({...prev, parentForInvoice: true}));
+            const { data: parent } = await supabase.from('parents').select('*').eq('id', childForInvoice.primary_parent_id).single();
+            setParentDetailsForInvoice(parent);
+            setLoadingData(prev => ({...prev, parentForInvoice: false}));
+        } else {
+            setParentDetailsForInvoice(null);
         }
         setShowViewInvoiceModal(true);
     }, [children]);
@@ -679,9 +662,9 @@ const App = () => {
     const deleteParentFromSupabase = useCallback(async (parentId: string) => {
         if (!window.confirm("Delete parent? This may affect linked children.")) return;
         try {
-            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('child_parents').select('child_id').eq('parent_id', parentId);
+            const { data: linkedChildren, error: childrenCheckError } = await supabase.from('children').select('id').eq('primary_parent_id', parentId);
             if (childrenCheckError) { showAlert(`Error checking linked children: ${childrenCheckError.message}`, 'error'); return; }
-            if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign children first.`, 'error'); return; }
+            if (linkedChildren && linkedChildren.length > 0) { showAlert(`Parent is linked to ${linkedChildren.length} child(ren). Reassign primary parent first.`, 'error'); return; }
             const { error } = await supabase.from('parents').delete().eq('id', parentId);
             if (error) throw error; 
             showAlert('Parent deleted successfully!');
@@ -788,8 +771,8 @@ const App = () => {
     
             case 'parent':
                 const getParentChildren = () => {
-                    if (!currentUser || !Array.isArray(children)) return [];
-                    return children.filter(c => c.child_parents.some(cp => cp.parents?.id === currentUser.profileId));
+                    if (!currentUser || !currentUser.profileId || !Array.isArray(children)) return [];
+                    return children.filter(c => c.primary_parent_id === currentUser.profileId);
                 };
                 const parentChildren = getParentChildren();
                 const parentChildrenIds = parentChildren.map(c => c.id);
@@ -904,8 +887,3 @@ const App = () => {
 };
 
 export default App;
-
-    
-
-    
-
