@@ -182,7 +182,7 @@ const App = () => {
                 const promises = [
                     fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
                     fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
-                    fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+                    fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
                     fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
                     fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
                 ];
@@ -290,7 +290,7 @@ const App = () => {
     
             showAlert('Child added successfully!'); 
             setShowAddChildModal(false);
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch (e: any) { showAlert(`Add child error: ${e.message}`, 'error'); }
     }, [showAlert, fetchData]);
     
@@ -319,7 +319,7 @@ const App = () => {
             showAlert('Child updated!'); 
             setShowEditChildModal(false); 
             setChildToEdit(null);
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         } catch(e: any){ showAlert(`Update child error: ${e.message}`,'error'); }
     }, [showAlert, childToEdit, fetchData]);
     
@@ -329,7 +329,7 @@ const App = () => {
             const {error}=await supabase.from('children').delete().eq('id', childId); 
             if(error) throw error; 
             showAlert('Child deleted!');
-            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+            fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Delete child error: ${e.message}`,'error');}
     }, [showAlert, fetchData]);
 
@@ -339,7 +339,7 @@ const App = () => {
         const now = new Date().toISOString(); 
         const wasCheckedIn = child.check_in_time && !child.check_out_time; 
         const updates = {check_in_time: wasCheckedIn ? child.check_in_time : now, check_out_time: wasCheckedIn ? now : null}; 
-        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(*)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+        try {const {error}=await supabase.from('children').update(updates).eq('id', childId); if(error) throw error; showAlert(`Child ${wasCheckedIn?'checked out':'checked in'} successfully!`); fetchData('children', setChildren, supabase.from('children').select('*, child_parents(is_primary, parent_id, parents(id, first_name, last_name, email)), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
         }catch(e: any){showAlert(`Check-in/out error: ${e.message}`,'error');}
     }, [showAlert, children, fetchData]);
       
@@ -908,3 +908,4 @@ export default App;
     
 
     
+
