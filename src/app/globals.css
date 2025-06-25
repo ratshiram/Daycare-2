@@ -60,7 +60,7 @@
 @layer components {
   /* Main Layout & App Structure */
   .app-container { @apply flex min-h-screen flex-col bg-background; }
-  .main-app-content { @apply flex flex-1; }
+  .main-app-content { @apply flex flex-1 overflow-hidden; }
   .main-content { @apply flex-1 flex flex-col transition-all duration-300 ease-in-out min-w-0; }
   .sidebar-open .main-content { @apply md:ml-64; }
   .sidebar-closed .main-content { @apply md:ml-20; }
@@ -106,7 +106,7 @@
   .btn-back { @apply mb-4; }
   
   /* Forms */
-  .form-page-card { @apply max-w-4xl mx-auto; }
+  .form-page-card { @apply w-full max-w-4xl mx-auto; }
   .form-layout { @apply grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4; }
   .form-layout > .form-section-title, .form-layout > .input-group, .form-layout > .form-actions { @apply md:col-span-2; }
   .input-group { @apply space-y-2; }
