@@ -155,6 +155,7 @@ const App = () => {
     }, [showAlert]);
     
     const fetchAllDataForRole = useCallback(async (role: string) => {
+        setLoadingData({ all: true });
         const promises = [
             fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
             fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
@@ -180,7 +181,8 @@ const App = () => {
         }
 
         await Promise.all(promises);
-    }, [fetchData]);
+        setLoadingData({ all: false });
+    }, [fetchData, showAlert]);
 
     useEffect(() => {
         const fetchUserProfile = async (user: User) => {
@@ -324,10 +326,18 @@ const App = () => {
     
             const dataToInsert: any = {...staffData};
             dataToInsert.role = dataToInsert.role?.toLowerCase(); 
-            if (dataToInsert.role !== 'teacher') dataToInsert.main_room_id = null;
-            else if (!dataToInsert.main_room_id || dataToInsert.main_room_id === '') dataToInsert.main_room_id = null; 
+            if (dataToInsert.role !== 'teacher') {
+                dataToInsert.main_room_id = null;
+            } else if (!dataToInsert.main_room_id || dataToInsert.main_room_id === '') {
+                dataToInsert.main_room_id = null; 
+            }
             
-            dataToInsert.user_id = (currentUser && dataToInsert.email === currentUser.email) ? currentUser.id : null;
+            if (currentUser && dataToInsert.email === currentUser.email) {
+                dataToInsert.user_id = currentUser.id;
+            } else {
+                dataToInsert.user_id = null;
+            }
+
             const {error}=await supabase.from('staff').insert([dataToInsert]);
             if(error) throw error;
             showAlert('Staff added!'); 
@@ -444,7 +454,7 @@ const App = () => {
     
     const handleViewIncidentDetails = useCallback((incident: IncidentReport) => { setIncidentToView(incident); setShowViewIncidentModal(true); }, []);
     
-    const handleNavigateToChildMedications = useCallback((child: Child) => { setChildForMedications(child); setCurrentPage('ChildMedicationsPage'); }, [setCurrentPage]);
+    const handleNavigateToChildMedications = useCallback((child: Child) => { setChildForMedications(child); setCurrentPage('ChildMedicationsPage'); }, []);
     const handleOpenAddMedicationModal = useCallback((childId: string) => { setChildForMedications(children.find(c => c.id === childId) || childForMedications); setShowAddMedicationModal(true); }, [children, childForMedications]);
     const handleOpenEditMedicationModal = useCallback((medication: Medication) => { setMedicationToEdit(medication); setShowEditMedicationModal(true); }, []);
     const handleOpenLogAdministrationModal = useCallback((medication: Medication) => { setMedicationToLog(medication); setShowLogMedicationModal(true); }, []);
@@ -788,7 +798,7 @@ const App = () => {
     };
     
     // --- Main Return for App Component ---
-    if (appIsLoading) {
+    if (appIsLoading || loadingData.all) {
         return <Loading />;
     }
     
