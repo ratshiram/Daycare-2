@@ -25,7 +25,7 @@ export const CommunicationsPage: React.FC = () => {
     const getVisibleChildren = () => {
         if (!Array.isArray(children)) return [];
         if (currentUser.role === 'parent') {
-            return children.filter(c => c.primary_parent_id === currentUser.profileId);
+            return children.filter(c => c.primary_parent_id === currentUser.profileId || c.secondary_parent_id === currentUser.profileId);
         }
         return children.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
     };
@@ -73,7 +73,7 @@ export const CommunicationsPage: React.FC = () => {
                     {visibleChildren.length > 0 ? (
                         <ul>
                             {visibleChildren.map(child => {
-                                const primaryParent = child.parents;
+                                const primaryParent = child.primary_parent;
                                 const parentName = primaryParent ? `${primaryParent.first_name} ${primaryParent.last_name}` : 'No primary parent';
                                 return (
                                     <li key={child.id}>
@@ -150,3 +150,5 @@ export const CommunicationsPage: React.FC = () => {
         </div>
     );
 };
+
+    

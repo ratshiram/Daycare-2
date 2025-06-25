@@ -9,7 +9,7 @@ import { Icons } from '@/components/Icons';
 import type { Child, Parent, Room } from '@/types';
 
 interface AddChildModalProps {
-    onAddChild: (childData: Omit<Child, 'id' | 'created_at' | 'parents'>) => void;
+    onAddChild: (childData: Omit<Child, 'id' | 'created_at' | 'primary_parent' | 'secondary_parent'>) => void;
     onClose: () => void;
     showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
     parentsList: Parent[];
@@ -17,15 +17,24 @@ interface AddChildModalProps {
 }
 
 export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClose, showAlert, parentsList, rooms }) => {
-    const [formData, setFormData] = useState<Omit<Child, 'id' | 'created_at' | 'parents'>>({
-        name: '', age: null, current_room_id: '', primary_parent_id: '', emergency_contact: '',
+    const [formData, setFormData] = useState<Omit<Child, 'id' | 'created_at' | 'primary_parent' | 'secondary_parent'>>({
+        name: '', age: null, current_room_id: '', primary_parent_id: '', secondary_parent_id: '', emergency_contact: '',
         allergies: '', notes: '', medical_info: {}, authorized_pickups: [], billing: {}
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         const val = (type === 'number') ? (value === '' ? null : parseInt(value, 10)) : value;
-        setFormData(prev => ({ ...prev, [name]: val }));
+
+        if (name === 'primary_parent_id' && value === formData.secondary_parent_id) {
+            setFormData(prev => ({ ...prev, secondary_parent_id: '', [name]: val }));
+        } else if (name === 'secondary_parent_id' && value === formData.primary_parent_id) {
+            // This case is implicitly handled by the UI filter, but good to have
+            showAlert("Primary and secondary parent cannot be the same.", "warning");
+        }
+        else {
+            setFormData(prev => ({ ...prev, [name]: val }));
+        }
     };
 
     const handleJsonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: 'medical_info' | 'billing') => {
@@ -45,6 +54,8 @@ export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClos
         onAddChild(formData);
     };
 
+    const availableSecondaryParents = parentsList.filter(p => p.id !== formData.primary_parent_id);
+
     return (
         <Modal onClose={onClose} title="Add New Child" size="large">
             <form onSubmit={handleSubmit} className="form-layout modal-form">
@@ -60,6 +71,12 @@ export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClos
                  <SelectField label="Primary Parent" name="primary_parent_id" value={formData.primary_parent_id || ''} onChange={handleChange} required icon={Icons.UserCog}>
                     <option value="">Select a Parent</option>
                     {Array.isArray(parentsList) && parentsList.map(parent => (
+                        <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
+                    ))}
+                </SelectField>
+                <SelectField label="Secondary Parent (Optional)" name="secondary_parent_id" value={formData.secondary_parent_id || ''} onChange={handleChange} icon={Icons.UserCog}>
+                    <option value="">Select a Parent</option>
+                    {availableSecondaryParents.map(parent => (
                         <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
                     ))}
                 </SelectField>
@@ -79,3 +96,5 @@ export const AddChildModal: React.FC<AddChildModalProps> = ({ onAddChild, onClos
         </Modal>
     );
 };
+
+    

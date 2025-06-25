@@ -34,7 +34,14 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         const val = type === 'number' ? (value === '' ? null : parseInt(value, 10)) : value;
-        setFormData(prev => ({ ...prev, [name]: val }));
+        
+        if (name === 'primary_parent_id' && value === formData.secondary_parent_id) {
+            setFormData(prev => ({ ...prev, secondary_parent_id: '', [name]: val }));
+        } else if (name === 'secondary_parent_id' && value === formData.primary_parent_id) {
+            showAlert("Primary and secondary parent cannot be the same.", "warning");
+        } else {
+             setFormData(prev => ({ ...prev, [name]: val }));
+        }
     };
 
     const handleJsonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: 'medical_info' | 'billing') => {
@@ -55,6 +62,8 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
 
     if (!child) return null;
 
+    const availableSecondaryParents = parentsList.filter(p => p.id !== formData.primary_parent_id);
+
     return (
         <Modal onClose={onClose} title={`Edit ${child.name || 'Child'}`} size="large">
             <form onSubmit={handleSubmit} className="form-layout modal-form">
@@ -69,6 +78,12 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
                  <SelectField label="Primary Parent" name="primary_parent_id" value={formData.primary_parent_id || ''} onChange={handleChange} required icon={Icons.UserCog}>
                     <option value="">Select a Parent</option>
                     {Array.isArray(parentsList) && parentsList.map(parent => (
+                        <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
+                    ))}
+                </SelectField>
+                 <SelectField label="Secondary Parent (Optional)" name="secondary_parent_id" value={formData.secondary_parent_id || ''} onChange={handleChange} icon={Icons.UserCog}>
+                    <option value="">Select a Parent</option>
+                    {availableSecondaryParents.map(parent => (
                         <option key={parent.id} value={parent.id}>{`${parent.first_name} ${parent.last_name}`}</option>
                     ))}
                 </SelectField>
@@ -90,3 +105,5 @@ export const EditChildModal: React.FC<EditChildModalProps> = ({ child, onClose, 
         </Modal>
     );
 };
+
+    

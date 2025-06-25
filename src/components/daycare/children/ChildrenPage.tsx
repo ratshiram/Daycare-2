@@ -2,7 +2,7 @@
 import React from 'react';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
-import type { Child } from '@/types';
+import type { Child, Parent } from '@/types';
 import Loading from '@/app/loading';
 import { useAppState } from '@/app/app';
 
@@ -41,7 +41,7 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                             <tr>
                                 <th className="th-cell">Name</th>
                                 <th className="th-cell th-sm-hidden">Age</th>
-                                <th className="th-cell th-md-hidden">Primary Parent</th>
+                                <th className="th-cell th-md-hidden">Parents</th>
                                 <th className="th-cell th-md-hidden">Status</th>
                                 <th className="th-cell th-actions">Actions</th>
                             </tr>
@@ -49,8 +49,12 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
                         <tbody>
                             {Array.isArray(childrenList) && childrenList.map(child => {
                                 const isCheckedIn = child.check_in_time && !child.check_out_time;
-                                const primaryParentInfo = child.parents;
-                                const parentDisplay = primaryParentInfo ? `${primaryParentInfo.first_name || ''} ${primaryParentInfo.last_name || ''}`.trim() : 'N/A';
+                                const primaryParentInfo = child.primary_parent;
+                                const secondaryParentInfo = child.secondary_parent;
+                                const parentDisplay = [primaryParentInfo, secondaryParentInfo]
+                                    .filter((p): p is Parent => !!p)
+                                    .map(p => `${p.first_name || ''} ${p.last_name || ''}`.trim())
+                                    .join(' & ') || 'N/A';
                                 
                                 return (
                                     <tr key={child.id} className="table-row">
@@ -84,3 +88,5 @@ export const ChildrenPage: React.FC<ChildrenPageProps> = ({ childrenList, loadin
         </div>
     );
 };
+
+    

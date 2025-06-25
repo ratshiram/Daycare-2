@@ -17,7 +17,7 @@ export const ParentDashboardPage = ({ currentUser }: { currentUser: any }) => {
     useEffect(() => {
         if (currentUser?.role === 'parent' && currentUser.profileId && Array.isArray(children)) {
             const filteredChildren = children.filter((c: Child) => 
-                Array.isArray(c.child_parents) && c.child_parents.some(cp => cp.parents?.id === currentUser.profileId)
+                c.primary_parent_id === currentUser.profileId || c.secondary_parent_id === currentUser.profileId
             );
             setMyChildren(filteredChildren);
 
@@ -114,3 +114,5 @@ export const ParentDashboardPage = ({ currentUser }: { currentUser: any }) => {
         </div>
     );
 };
+
+    

@@ -24,6 +24,7 @@ export interface Child extends Base {
     age: number | null;
     current_room_id?: string | null;
     primary_parent_id?: string | null;
+    secondary_parent_id?: string | null;
     emergency_contact?: string | null;
     allergies?: string | null;
     notes?: string | null;
@@ -32,7 +33,8 @@ export interface Child extends Base {
     billing?: any;
     check_in_time?: string | null;
     check_out_time?: string | null;
-    parents?: Parent | null; // For joined data
+    primary_parent?: Parent | null; 
+    secondary_parent?: Parent | null;
 }
 
 export interface Staff extends Base {
@@ -179,3 +181,5 @@ export type AppState = {
   showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
   addMessageToSupabase: (childId: string, content: string) => Promise<void>;
 };
+
+    
