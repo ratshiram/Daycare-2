@@ -180,6 +180,12 @@ const App = () => {
                     setCurrentUser(userDetails as CurrentUser);
                     setAppMode(role);
 
+                    if (role === 'unknown') {
+                        setCurrentPage('UnknownRolePage');
+                        setAppIsLoading(false);
+                        return;
+                    }
+
                     let initialPage = '';
                     switch (role) {
                         case 'admin': initialPage = 'AdminDashboard'; break;
@@ -270,10 +276,12 @@ const App = () => {
         };
 
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+            setSession(initialSession);
             processSessionChange(initialSession);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sessionData) => {
+            setSession(sessionData);
             processSessionChange(sessionData);
         });
 
@@ -858,7 +866,7 @@ const App = () => {
                     case 'Communications': return <CommunicationsPage />;
                     default: return <ParentDashboardPage currentUser={currentUser} />;
                 }
-            case 'unknown_profile':
+            case 'unknown':
             case 'exception_profile':
                 return <UnknownRolePage />;
             default:
@@ -885,7 +893,7 @@ const App = () => {
                                 <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
                             )}
                             <div className={`main-app-content ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-                                 {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
+                                 {(appMode !== 'auth' && !['unknown', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
                                     <aside className="sidebar">
                                         <div className="sidebar-header">
                                             {isSidebarOpen && <span className="sidebar-title">{currentPortalName}</span>}
@@ -911,7 +919,7 @@ const App = () => {
                                 )}
                                 <main className="main-content">
                                     <header className="main-header">
-                                        {(appMode !== 'auth' && !['unknown_profile', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
+                                        {(appMode !== 'auth' && !['unknown', 'exception_profile'].includes(appMode) && currentNavItems.length > 0) && (
                                             <button onClick={toggleSidebar} className="mobile-menu-button">
                                                 <Icons.Menu size={24} />
                                             </button>
