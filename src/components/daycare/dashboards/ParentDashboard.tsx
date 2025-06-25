@@ -1,92 +1,114 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAppState } from '@/app/app';
 import { InfoMessage } from '../ui/InfoMessage';
 import { Icons } from '@/components/Icons';
-import type { Child, DailyReport } from '@/types';
-
-const QuickActionItem = ({ icon: Icon, label, onClick }: any) => (
-    <button
-        className="quick-action-item page-card-item interactive-card"
-        onClick={onClick}
-        title={`Navigate to ${label}`}>
-        <div className="quick-action-header">
-            {Icon && <Icon size={24} className="quick-action-icon text-primary" />}
-            <span className="quick-action-label">{label}</span>
-        </div>
-    </button>
-);
+import type { Child, DailyReport, Announcement } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { formatDateForInput } from '@/lib/customUtils';
+import { Button } from '@/components/ui/button';
 
 export const ParentDashboardPage = ({ currentUser }: { currentUser: any }) => {
-    const { children, dailyReports, rooms, setCurrentPage } = useAppState();
+    const { children, dailyReports, announcements, setCurrentPage } = useAppState();
     const [myChildren, setMyChildren] = useState<Child[]>([]);
-    const [reportCounts, setReportCounts] = useState<Record<string, number>>({});
+    const [latestReport, setLatestReport] = useState<DailyReport | null>(null);
+    const [latestAnnouncement, setLatestAnnouncement] = useState<Announcement | null>(null);
 
     useEffect(() => {
         if (currentUser?.role === 'parent' && currentUser.profileId && Array.isArray(children)) {
             const filteredChildren = children.filter((c: Child) => c.primary_parent_id === currentUser.profileId);
             setMyChildren(filteredChildren);
 
-            if (Array.isArray(dailyReports) && filteredChildren.length > 0) {
-                const counts = filteredChildren.reduce((acc, child) => {
-                    acc[child.id] = dailyReports.filter((report: DailyReport) => report.child_id === child.id).length;
-                    return acc;
-                }, {} as Record<string, number>);
-                setReportCounts(counts);
+            if (filteredChildren.length > 0) {
+                const childrenIds = filteredChildren.map(c => c.id);
+                
+                if (Array.isArray(dailyReports)) {
+                    const reportsForMyChildren = dailyReports
+                        .filter(r => childrenIds.includes(r.child_id))
+                        .sort((a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime());
+                    setLatestReport(reportsForMyChildren[0] || null);
+                }
+
+                if (Array.isArray(announcements)) {
+                    const publishedAnnouncements = announcements
+                        .filter(a => a.is_published)
+                        .sort((a, b) => new Date(b.publish_date).getTime() - new Date(a.publish_date).getTime());
+                    setLatestAnnouncement(publishedAnnouncements[0] || null);
+                }
             }
-        } else {
-            setMyChildren([]);
-            setReportCounts({});
         }
-    }, [currentUser, children, dailyReports]);
+    }, [currentUser, children, dailyReports, announcements]);
+
+    const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
+        acc[child.id] = child.name;
+        return acc;
+    }, {} as Record<string, string>) : {};
 
     return (
-        <div className="page-card admin-dashboard space-y-8">
+        <div className="space-y-6">
             <InfoMessage message={`Welcome, ${currentUser?.name || 'Parent'}!`} icon={Icons.Smile} type="info" />
 
-            <div>
-                <h3 className="dashboard-section-title text-2xl font-bold mb-4">Your Children</h3>
-                {myChildren.length > 0 ? (
-                    <ul className="space-y-4">
-                        {myChildren.map(child => {
-                            const isCheckedIn = child.check_in_time && !child.check_out_time;
-                            const statusText = isCheckedIn ? 'Checked In' : 'Checked Out';
-                            const statusClass = isCheckedIn ? 'status-badge-green' : 'status-badge-red';
-                            const room = rooms?.find((r: any) => r.id === child.current_room_id);
-
-                            return (
-                                <li key={child.id} className="content-list-item page-card-item p-4">
-                                    <div className="flex justify-between items-center flex-wrap gap-2">
-                                        <span className='font-semibold text-lg'>{child.name} (Age: {child.age || 'N/A'})</span>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                            <span className={`status-badge ${statusClass}`}>
-                                                {isCheckedIn ? <Icons.LogIn size={14} className="mr-1" /> : <Icons.LogOut size={14} className="mr-1" />}
-                                                {statusText}
-                                            </span>
-                                            <span className="status-badge status-badge-blue">
-                                                <Icons.BookCopy size={14} className="mr-1" />
-                                                {reportCounts[child.id] || 0} Reports
-                                            </span>
-                                        </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="col-span-full md:col-span-1 lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle>My Children</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {myChildren.length > 0 ? (
+                            myChildren.map(child => {
+                                const isCheckedIn = child.check_in_time && !child.check_out_time;
+                                return (
+                                    <div key={child.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                                        <div className="font-semibold">{child.name}</div>
+                                        <span className={`status-badge ${isCheckedIn ? 'status-badge-green' : 'status-badge-red'}`}>{isCheckedIn ? 'Checked In' : 'Checked Out'}</span>
                                     </div>
-                                    {room && <p className="text-sm text-muted-foreground mt-1">Room: {room.name}</p>}
-                                </li>
-                            );
-                        })}
-                    </ul>
-                ) : (
-                    <p>No children linked to your profile. Please contact administration if this is an error.</p>
-                )}
+                                );
+                            })
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No children linked to your profile.</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="col-span-full md:col-span-1 lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Latest Updates</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {latestReport ? (
+                            <div className="p-3 border rounded-lg">
+                                <p className="text-sm font-semibold text-primary">Latest Daily Report</p>
+                                <p className="text-sm">{`A new report for ${childNameMap[latestReport.child_id]} on ${formatDateForInput(latestReport.report_date)} is available.`}</p>
+                                <Button variant="link" className="p-0 h-auto" onClick={() => setCurrentPage('ParentDailyReports')}>View Reports</Button>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No new daily reports.</p>
+                        )}
+                        {latestAnnouncement ? (
+                             <div className="p-3 border rounded-lg">
+                                <p className="text-sm font-semibold text-primary">New Announcement</p>
+                                <p className="text-sm font-bold">{latestAnnouncement.title}</p>
+                                <p className="text-sm text-muted-foreground truncate">{latestAnnouncement.content}</p>
+                                <Button variant="link" className="p-0 h-auto" onClick={() => setCurrentPage('AdminAnnouncements')}>Read More</Button>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No new announcements.</p>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
 
-            <div>
-                <h2 className="dashboard-section-title text-2xl font-bold mb-4">Quick Access</h2>
-                <div className="quick-actions-grid">
-                    <QuickActionItem icon={Icons.FileText} label="View Daily Reports" onClick={() => setCurrentPage('ParentDailyReports')} />
-                    <QuickActionItem icon={Icons.DollarSign} label="View Invoices" onClick={() => setCurrentPage('ParentInvoices')} />
-                    <QuickActionItem icon={Icons.Camera} label="Photo Gallery" onClick={() => setCurrentPage('AdminGallery')} />
-                    <QuickActionItem icon={Icons.Megaphone} label="Announcements" onClick={() => setCurrentPage('AdminAnnouncements')} />
-                </div>
-            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quick Access</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Button variant="outline" onClick={() => setCurrentPage('ParentDailyReports')}><Icons.FileText className="mr-2"/>Daily Reports</Button>
+                    <Button variant="outline" onClick={() => setCurrentPage('ParentInvoices')}><Icons.DollarSign className="mr-2"/>Invoices</Button>
+                    <Button variant="outline" onClick={() => setCurrentPage('AdminGallery')}><Icons.Camera className="mr-2"/>Photo Gallery</Button>
+                    <Button variant="outline" onClick={() => setCurrentPage('AdminAnnouncements')}><Icons.Megaphone className="mr-2"/>Announcements</Button>
+                </CardContent>
+            </Card>
         </div>
     );
 };
