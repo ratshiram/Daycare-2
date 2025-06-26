@@ -9,6 +9,7 @@ import { Icons } from '@/components/Icons';
 import type { LessonPlan } from '@/types';
 import { useAppState } from '@/app/app';
 import { formatDateForInput } from '@/lib/customUtils';
+import { uploadLessonPlanDocument } from '@/lib/storage';
 
 interface CreateOrEditLessonPlanModalProps {
     onAddLessonPlan: (planData: Omit<LessonPlan, 'id' | 'created_at'>) => void;
@@ -33,7 +34,10 @@ export const CreateOrEditLessonPlanModal: React.FC<CreateOrEditLessonPlanModalPr
         assessment: '',
         plan_date: formatDateForInput(new Date()),
         room_id: '',
+        document_url: null,
     });
+    const [documentFile, setDocumentFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         if (isEditing && initialData) {
@@ -49,24 +53,43 @@ export const CreateOrEditLessonPlanModal: React.FC<CreateOrEditLessonPlanModalPr
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setDocumentFile(file);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.title || !formData.plan_date) {
             showAlert("Title and Plan Date are required.", "error");
             return;
         }
 
-        const dataToSubmit = { ...formData };
-        if (dataToSubmit.room_id === '') {
-            dataToSubmit.room_id = undefined;
-        }
-        
-        if (isEditing && initialData) {
-            onUpdateLessonPlan({ ...dataToSubmit, id: initialData.id, created_at: initialData.created_at, staff_id: initialData.staff_id });
-        } else if (currentUser?.staff_id) {
-             onAddLessonPlan({ ...dataToSubmit, staff_id: currentUser.staff_id });
-        } else {
-            showAlert("Could not identify staff member creating this plan.", "error");
+        setIsUploading(true);
+        try {
+            let documentUrl = formData.document_url;
+            if (documentFile) {
+                documentUrl = await uploadLessonPlanDocument(documentFile);
+            }
+
+            const dataToSubmit = { ...formData, document_url: documentUrl };
+            if (dataToSubmit.room_id === '') {
+                (dataToSubmit as any).room_id = null;
+            }
+            
+            if (isEditing && initialData) {
+                onUpdateLessonPlan({ ...dataToSubmit, id: initialData.id, created_at: initialData.created_at, staff_id: initialData.staff_id });
+            } else if (currentUser?.staff_id) {
+                onAddLessonPlan({ ...dataToSubmit, staff_id: currentUser.staff_id });
+            } else {
+                showAlert("Could not identify staff member creating this plan.", "error");
+            }
+        } catch (uploadError: any) {
+            showAlert(`Document upload failed: ${uploadError.message}`, 'error');
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -80,6 +103,14 @@ export const CreateOrEditLessonPlanModal: React.FC<CreateOrEditLessonPlanModalPr
                     <option value="">All Rooms</option>
                     {Array.isArray(rooms) && rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
                 </SelectField>
+                <div className="md:col-span-2">
+                    <InputField label="Attach Document (Optional)" type="file" onChange={handleFileChange} icon={Icons.UploadCloud} />
+                    {formData.document_url && !documentFile && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Current file: <a href={formData.document_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{formData.document_url.split('/').pop()}</a>
+                        </p>
+                    )}
+                </div>
 
                 <div className="md:col-span-2">
                     <TextAreaField label="Description" name="description" value={formData.description || ''} onChange={handleChange} rows={3} />
@@ -102,7 +133,8 @@ export const CreateOrEditLessonPlanModal: React.FC<CreateOrEditLessonPlanModalPr
                 <FormActions 
                     onCancel={onCancel} 
                     submitText={isEditing ? 'Save Changes' : 'Create Plan'} 
-                    submitIcon={isEditing ? Icons.CheckCircle : Icons.PlusCircle} 
+                    submitIcon={isEditing ? Icons.CheckCircle : Icons.PlusCircle}
+                    loading={isUploading}
                 />
             </form>
         </Modal>

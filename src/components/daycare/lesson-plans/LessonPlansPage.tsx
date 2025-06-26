@@ -66,6 +66,11 @@ export const LessonPlansPage: React.FC<LessonPlansPageProps> = ({ onOpenCreateOr
                                     <td className="td-cell th-sm-hidden">{plan.room_id ? roomNameMap[plan.room_id] : 'All Rooms'}</td>
                                     <td className="td-cell th-md-hidden">{staffNameMap[plan.staff_id] || 'Unknown'}</td>
                                     <td className="td-cell td-actions">
+                                        {plan.document_url && (
+                                            <a href={plan.document_url} target="_blank" rel="noopener noreferrer" className="btn-icon table-action-button" title="View Document">
+                                                <Icons.Paperclip size={16} />
+                                            </a>
+                                        )}
                                         {canPerformActions(plan) && (
                                             <>
                                                 <button onClick={() => onOpenCreateOrEditModal(plan)} className="btn-icon table-action-button edit" title="Edit"><Icons.Edit3 size={16} /></button>

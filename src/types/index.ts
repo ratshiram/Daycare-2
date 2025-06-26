@@ -180,6 +180,7 @@ export interface LessonPlan extends Base {
     plan_date: string;
     staff_id: string;
     room_id?: string | null;
+    document_url?: string | null;
 }
 
 export type AppState = {
@@ -208,4 +209,3 @@ export type AppState = {
     
 
     
-

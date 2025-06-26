@@ -61,3 +61,17 @@ export const uploadReportVideo = async (file: File, childId: string, videoNumber
         throw error;
     }
 };
+
+export const uploadLessonPlanDocument = async (file: File) => {
+    if (!file) return null;
+    const BUCKET_NAME = 'galleryfiles'; // Using the same bucket for simplicity
+    const pathPrefix = `lesson-plans`;
+
+    try {
+        const uploadResult = await uploadFileToSupabase(file, BUCKET_NAME, pathPrefix);
+        return uploadResult?.publicUrl || null;
+    } catch (error: any) {
+        console.error('Lesson plan document upload failed:', error.message, error);
+        throw error;
+    }
+};
