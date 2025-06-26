@@ -170,6 +170,18 @@ export interface Message extends Base {
     content: string;
 }
 
+export interface LessonPlan extends Base {
+    title: string;
+    description?: string | null;
+    objectives?: string | null;
+    materials?: string | null;
+    activities?: string | null;
+    assessment?: string | null;
+    plan_date: string;
+    staff_id: string;
+    room_id?: string | null;
+}
+
 export type AppState = {
   currentUser: any | null;
   appMode: string;
@@ -186,6 +198,7 @@ export type AppState = {
   parentsList: Parent[];
   staffLeaveRequests: StaffLeaveRequest[];
   messages: Message[];
+  lessonPlans: LessonPlan[];
   setCurrentPage: (page: string) => void;
   loadingData: Record<string, boolean>;
   showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
@@ -195,3 +208,4 @@ export type AppState = {
     
 
     
+
