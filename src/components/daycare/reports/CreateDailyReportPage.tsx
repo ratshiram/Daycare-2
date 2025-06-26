@@ -9,6 +9,7 @@ import { Icons } from '@/components/Icons';
 import type { Child, Staff, DailyReport } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
 import { uploadReportPhoto, uploadReportVideo } from '@/lib/storage';
+import { Button } from '@/components/ui/button';
 
 interface CreateOrEditDailyReportModalProps {
     children: Child[];
@@ -38,6 +39,9 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
     const [video1File, setVideo1File] = useState<File | null>(null);
     const [video2File, setVideo2File] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    
+    const [photo1Preview, setPhoto1Preview] = useState<string | null>(null);
+    const [photo2Preview, setPhoto2Preview] = useState<string | null>(null);
 
     useEffect(() => {
         if (isEditing && initialData) {
@@ -55,6 +59,25 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
             });
         }
     }, [isEditing, initialData]);
+
+    useEffect(() => {
+        if (photo1File) {
+            const objectUrl = URL.createObjectURL(photo1File);
+            setPhoto1Preview(objectUrl);
+            return () => URL.revokeObjectURL(objectUrl);
+        }
+        setPhoto1Preview(null);
+    }, [photo1File]);
+
+    useEffect(() => {
+        if (photo2File) {
+            const objectUrl = URL.createObjectURL(photo2File);
+            setPhoto2Preview(objectUrl);
+            return () => URL.revokeObjectURL(objectUrl);
+        }
+        setPhoto2Preview(null);
+    }, [photo2File]);
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -81,6 +104,22 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
             else if (fileType === 'photo2') setPhoto2File(file);
             else if (fileType === 'video1') setVideo1File(file);
             else if (fileType === 'video2') setVideo2File(file);
+        }
+    };
+    
+    const handleRemoveMedia = (type: 'photo1' | 'photo2' | 'video1' | 'video2') => {
+        if (type === 'photo1') {
+            setPhoto1File(null);
+            setFormData(prev => ({ ...prev, photo_url_1: null }));
+        } else if (type === 'photo2') {
+            setPhoto2File(null);
+            setFormData(prev => ({ ...prev, photo_url_2: null }));
+        } else if (type === 'video1') {
+            setVideo1File(null);
+            setFormData(prev => ({ ...prev, video_url_1: null }));
+        } else if (type === 'video2') {
+            setVideo2File(null);
+            setFormData(prev => ({ ...prev, video_url_2: null }));
         }
     };
 
@@ -117,6 +156,37 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
             setIsUploading(false);
         }
     };
+    
+    // New helper component for media input
+    const MediaInput = ({
+        label, type, file, preview, existingUrl, onFileChange, onRemove
+    }: {
+        label: string, type: 'photo1' | 'photo2' | 'video1' | 'video2', file: File | null,
+        preview: string | null, existingUrl: string | null | undefined,
+        onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
+        onRemove: () => void
+    }) => (
+        <div className="space-y-2">
+            <InputField label={label} type="file" onChange={onFileChange} icon={Icons.UploadCloud} accept={type.includes('photo') ? "image/*" : "video/*"} />
+            {(preview || existingUrl) && (
+                <div className="mt-2 p-2 border rounded-md relative">
+                    {type.includes('photo') ? (
+                        <img src={preview || existingUrl!} alt={`${label} preview`} className="w-full h-32 object-cover rounded-md" />
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <Icons.FileText className="h-10 w-10 text-muted-foreground"/>
+                            <p className="text-xs text-muted-foreground truncate mt-1">
+                                {file?.name || existingUrl?.split('%2F').pop()?.split('?')[0] || 'Video File'}
+                            </p>
+                        </div>
+                    )}
+                    <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/75" onClick={onRemove}>
+                        <Icons.X className="h-4 w-4 text-white" />
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <Modal onClose={onCancel} title={isEditing ? 'Edit Daily Report' : 'Create Daily Report'} size="large">
@@ -136,8 +206,8 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
                 <div>
                     <h3 className="form-section-title !mt-0 !mb-4 !border-t-0 pl-0">Meals</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InputField label="Breakfast Notes" name="breakfast" value={formData.meals?.breakfast} onChange={(e) => handleMealChange(e, 'breakfast')} placeholder="e.g., Ate all cereal" />
-                        <InputField label="Lunch Notes" name="lunch" value={formData.meals?.lunch} onChange={(e) => handleMealChange(e, 'lunch')} placeholder="e.g., Enjoyed pasta, some veggies" />
+                        <InputField label="Breakfast Notes" name="breakfast" value={formData.meals?.breakfast || ''} onChange={(e) => handleMealChange(e, 'breakfast')} placeholder="e.g., Ate all cereal" />
+                        <InputField label="Lunch Notes" name="lunch" value={formData.meals?.lunch || ''} onChange={(e) => handleMealChange(e, 'lunch')} placeholder="e.g., Enjoyed pasta, some veggies" />
                     </div>
                 </div>
 
@@ -164,14 +234,10 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
                 <div>
                     <h3 className="form-section-title !mt-0 !mb-4 !border-t-0 pl-0">Media (Optional)</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <InputField label="Photo 1" type="file" onChange={(e) => handleFileChange(e, 'photo1')} icon={Icons.UploadCloud} accept="image/*" />
-                        {formData.photo_url_1 && !photo1File && <p className="text-sm text-muted-foreground self-center">Current: {formData.photo_url_1.split('/').pop()}</p>}
-                        <InputField label="Photo 2" type="file" onChange={(e) => handleFileChange(e, 'photo2')} icon={Icons.UploadCloud} accept="image/*" />
-                        {formData.photo_url_2 && !photo2File && <p className="text-sm text-muted-foreground self-center">Current: {formData.photo_url_2.split('/').pop()}</p>}
-                        <InputField label="Video 1" type="file" onChange={(e) => handleFileChange(e, 'video1')} icon={Icons.UploadCloud} accept="video/*" />
-                        {formData.video_url_1 && !video1File && <p className="text-sm text-muted-foreground self-center">Current: {formData.video_url_1.split('/').pop()}</p>}
-                        <InputField label="Video 2" type="file" onChange={(e) => handleFileChange(e, 'video2')} icon={Icons.UploadCloud} accept="video/*" />
-                        {formData.video_url_2 && !video2File && <p className="text-sm text-muted-foreground self-center">Current: {formData.video_url_2.split('/').pop()}</p>}
+                         <MediaInput label="Photo 1" type="photo1" file={photo1File} preview={photo1Preview} existingUrl={formData.photo_url_1} onFileChange={(e) => handleFileChange(e, 'photo1')} onRemove={() => handleRemoveMedia('photo1')} />
+                         <MediaInput label="Photo 2" type="photo2" file={photo2File} preview={photo2Preview} existingUrl={formData.photo_url_2} onFileChange={(e) => handleFileChange(e, 'photo2')} onRemove={() => handleRemoveMedia('photo2')} />
+                         <MediaInput label="Video 1" type="video1" file={video1File} preview={null} existingUrl={formData.video_url_1} onFileChange={(e) => handleFileChange(e, 'video1')} onRemove={() => handleRemoveMedia('video1')} />
+                         <MediaInput label="Video 2" type="video2" file={video2File} preview={null} existingUrl={formData.video_url_2} onFileChange={(e) => handleFileChange(e, 'video2')} onRemove={() => handleRemoveMedia('video2')} />
                     </div>
                 </div>
                 
