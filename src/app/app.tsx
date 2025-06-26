@@ -50,6 +50,7 @@ import { CommunicationsPage } from '@/components/daycare/communications/Communic
 import { LessonPlansPage } from '@/components/daycare/lesson-plans/LessonPlansPage';
 import { CreateOrEditLessonPlanModal } from '@/components/daycare/lesson-plans/CreateOrEditLessonPlanModal';
 import { useToast } from '@/hooks/use-toast';
+import { formatDateForInput } from '@/lib/customUtils';
 import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, StaffLeaveRequest, WaitlistEntry, Message, LessonPlan, AppState, Notification } from '@/types';
 import Loading from './loading';
 import { Icons } from '@/components/Icons';
