@@ -205,69 +205,41 @@ const App = () => {
                     setCurrentPage(initialPage);
                     
                     // Fetch all data for the determined role
-                    const fetchData = async (dataType: string, query: Promise<any>) => {
-                        setLoadingData(prev => ({...prev, [dataType]: true}));
-                        try {
-                          const { data, error } = await query;
-                          if (error) throw error;
-                          return data || [];
-                        } catch (e: any) { 
-                            showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); 
-                            return [];
-                        } finally { 
-                            setLoadingData(prev => ({...prev, [dataType]: false})); 
-                        }
-                    };
+                    const dataPromises: { [key: string]: Promise<any> } = {};
 
-                    const dataPromises: { [key: string]: Promise<any> } = {
-                        rooms: fetchData('rooms', supabase.from('rooms').select('*').order('name', { ascending: true })),
-                        announcements: fetchData('announcements', supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
-                        children: fetchData('children', supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
-                        medications: fetchData('medications', supabase.from('medications').select('*').order('medication_name', { ascending: true })),
-                        messages: fetchData('messages', supabase.from('messages').select('*').order('created_at', { ascending: true })),
-                        notifications: fetchData('notifications', supabase.from('notifications').select('*').order('created_at', { ascending: false })),
-                    };
+                    dataPromises.rooms = fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
+                    dataPromises.announcements = fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
+                    dataPromises.children = fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+                    dataPromises.medications = fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
+                    dataPromises.messages = fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
+                    dataPromises.notifications = fetchData('notifications', setNotifications, supabase.from('notifications').select('*').eq('user_id', userDetails.id).order('created_at', { ascending: false }));
             
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
                         dataPromises.staff = fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
-                        dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        dataPromises.dailyReports = fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         if (['admin', 'teacher'].includes(role)) {
-                            dataPromises.lessonPlans = fetchData('lessonPlans', supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
+                            dataPromises.lessonPlans = fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
                         }
                         if (role === 'admin') {
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
                         } else if (userDetails?.staff_id) {
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
+                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
                         }
                     } else if (role === 'parent') {
-                        dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
-                        dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                        dataPromises.lessonPlans = fetchData('lessonPlans', supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
+                        dataPromises.dailyReports = fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        dataPromises.invoices = fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        dataPromises.lessonPlans = fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
                     }
                     
                     if (role === 'admin') {
-                        dataPromises.incidentReports = fetchData('incidentReports', supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
-                        dataPromises.medicationLogs = fetchData('medicationLogs', supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
-                        dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                        dataPromises.waitlistEntries = fetchData('waitlistEntries', supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
-                        dataPromises.parentsList = fetchData('parentsList', supabase.from('parents').select('*').order('last_name', { ascending: true }));
+                        dataPromises.incidentReports = fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
+                        dataPromises.medicationLogs = fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
+                        dataPromises.invoices = fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        dataPromises.waitlistEntries = fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
+                        dataPromises.parentsList = fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
                     }
             
-                    const results = await Promise.all(Object.values(dataPromises));
-                    const keys = Object.keys(dataPromises);
-                    
-                    const setters: { [key: string]: React.Dispatch<React.SetStateAction<any>> } = {
-                        rooms: setRooms, announcements: setAnnouncements, children: setChildren, medications: setMedications, messages: setMessages,
-                        staff: setStaff, dailyReports: setDailyReports, invoices: setInvoices, incidentReports: setIncidentReports,
-                        medicationLogs: setMedicationLogs, waitlistEntries: setWaitlistEntries, parentsList: setParentsList, staffLeaveRequests: setStaffLeaveRequests,
-                        lessonPlans: setLessonPlans, notifications: setNotifications
-                    };
-
-                    keys.forEach((key, index) => {
-                        if (setters[key]) {
-                            setters[key](results[index]);
-                        }
-                    });
+                    await Promise.all(Object.values(dataPromises));
 
                 } else {
                     setAppMode('auth');
@@ -338,16 +310,15 @@ const App = () => {
     }, [showAlert]);
 
     const markAllNotificationsAsRead = useCallback(async () => {
-        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-        if (unreadIds.length === 0) return;
+        if (!currentUser?.id) return;
         try {
-            const { error } = await supabase.from('notifications').update({ is_read: true }).in('id', unreadIds);
+            const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', currentUser.id).eq('is_read', false);
             if (error) throw error;
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
         } catch (e: any) {
             showAlert(`Error marking all notifications as read: ${e.message}`, 'error');
         }
-    }, [showAlert, notifications]);
+    }, [showAlert, currentUser]);
     
     // --- ALL CRUD OPERATIONS ---
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'primary_parent'>) => {
@@ -1118,4 +1089,5 @@ const App = () => {
 
 export default App;
 
+    
     
