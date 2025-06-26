@@ -50,7 +50,7 @@ import { CommunicationsPage } from '@/components/daycare/communications/Communic
 import { LessonPlansPage } from '@/components/daycare/lesson-plans/LessonPlansPage';
 import { CreateOrEditLessonPlanModal } from '@/components/daycare/lesson-plans/CreateOrEditLessonPlanModal';
 import { useToast } from '@/hooks/use-toast';
-import { formatDateForInput } from '@/lib/customUtils';
+import { formatDateForInput, formatDateTimeForInput } from '@/lib/customUtils';
 import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, StaffLeaveRequest, WaitlistEntry, Message, LessonPlan, AppState, Notification } from '@/types';
 import Loading from './loading';
 import { Icons } from '@/components/Icons';
@@ -532,6 +532,18 @@ const App = () => {
         }
     }, [showAlert, reportToEdit, fetchData]);
 
+    const deleteDailyReportFromSupabase = useCallback(async (reportId: string) => {
+        if (!window.confirm("Are you sure you want to delete this daily report? This action cannot be undone.")) return;
+        try {
+            const { error } = await supabase.from('daily_reports').delete().eq('id', reportId);
+            if (error) throw error;
+            showAlert('Daily report deleted successfully!');
+            fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+        } catch (e: any) {
+            showAlert(`Error deleting daily report: ${e.message}`, 'error');
+        }
+    }, [showAlert, fetchData]);
+
     const addIncidentReportToSupabase = useCallback(async (incidentData: Omit<IncidentReport, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot log incident: Staff profile not loaded.", "error"); return; }
         const dataWithStaffId = { ...incidentData, reported_by_staff_id: currentUser.staff_id };
@@ -940,7 +952,7 @@ const App = () => {
                     case 'StaffLeaveRequests': return <StaffLeaveRequestPage onOpenRequestLeaveModal={() => {}} onUpdateRequestStatus={updateStaffLeaveRequestStatus} />;
                     case 'AdminParents': return <AdminParentsPage parentsList={parentsList} loading={loadingData.parentsList || false} onOpenAddParentModal={() => setShowAddParentModal(true)} onEditParent={handleOpenEditParentModal} onDeleteParent={deleteParentFromSupabase} />;
                     case 'Rooms': return <RoomManagementPage rooms={rooms} loading={loadingData.rooms || false} onOpenAddRoomModal={() => setShowAddRoomModal(true)} onEditRoom={handleOpenEditRoomModal} onDeleteRoom={deleteRoomFromSupabase} />;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} onDeleteReport={deleteDailyReportFromSupabase} />;
                     case 'AdminIncidentReports': return <AdminIncidentReportsPage incidentReports={incidentReports} children={children} staff={staff} loading={loadingData.incidentReports || false} onOpenLogIncidentModal={() => setShowLogIncidentModal(true)} onViewIncidentDetails={handleViewIncidentDetails} />;
                     case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('Children');}} /> : <Loading />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
@@ -957,7 +969,7 @@ const App = () => {
                     case 'TeacherDashboard': return <TeacherDashboardPage />;
                     case 'Children': return <ChildrenPage childrenList={children} loading={loadingData.children || false} onOpenAddChildModal={() => setShowAddChildModal(true)} onEditChild={handleOpenEditChildModal} onDeleteChild={deleteChildFromSupabase} onToggleCheckIn={toggleChildCheckInStatus} onNavigateToChildMedications={handleNavigateToChildMedications} />;
                     case 'ChildMedicationsPage': return childForMedications ? <ChildMedicationsPage child={childForMedications} onOpenAddMedicationModal={handleOpenAddMedicationModal} onOpenEditMedicationModal={handleOpenEditMedicationModal} onOpenLogAdministrationModal={handleOpenLogAdministrationModal} onDeleteMedication={deleteMedicationFromSupabase} onCancel={() => {setChildForMedications(null); setCurrentPage('Children');}} /> : <Loading />;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => { setReportToEdit(null); setShowCreateReportModal(true);}} onViewReportDetails={handleViewReportDetails} onEditReport={handleEditReport} onDeleteReport={deleteDailyReportFromSupabase} />;
                     case 'AdminGallery': return <AdminGalleryPage />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={handleOpenCreateAnnouncementModal} onEditAnnouncement={handleEditAnnouncement} onDeleteAnnouncement={deleteAnnouncementFromSupabase} />;
                     case 'StaffLeaveRequests': return <StaffLeaveRequestPage onOpenRequestLeaveModal={() => setShowRequestLeaveModal(true)} onUpdateRequestStatus={updateStaffLeaveRequestStatus} />;
@@ -969,7 +981,7 @@ const App = () => {
             case 'assistant':
                 switch (currentPage) {
                     case 'AssistantDashboard': return <div>Assistant Dashboard</div>;
-                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => setShowCreateReportModal(true)} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
+                    case 'AdminDailyReports': return <AdminDailyReportsPage dailyReports={dailyReports} children={children} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={() => setShowCreateReportModal(true)} onViewReportDetails={handleViewReportDetails} onEditReport={null} onDeleteReport={null} />;
                     case 'AdminGallery': return <AdminGalleryPage />;
                     default: return <div>Assistant Dashboard</div>;
                 }
@@ -986,7 +998,7 @@ const App = () => {
                     case 'ParentDashboard': return <ParentDashboardPage currentUser={currentUser} />;
                     case 'ParentDailyReports': {
                         const filteredDailyReports = dailyReports.filter(report => parentChildrenIds.includes(report.child_id));
-                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={parentChildren} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} />;
+                        return <AdminDailyReportsPage dailyReports={filteredDailyReports} children={parentChildren} staff={staff} loading={loadingData.dailyReports || false} onOpenCreateReportModal={null} onViewReportDetails={handleViewReportDetails} onEditReport={null} onDeleteReport={null} />;
                     }
                     case 'ParentInvoices': {
                         const filteredInvoices = invoices.filter(inv => parentChildrenIds.includes(inv.child_id));

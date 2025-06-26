@@ -14,9 +14,10 @@ interface AdminDailyReportsPageProps {
     onOpenCreateReportModal: (() => void) | null;
     onViewReportDetails: (report: DailyReport) => void;
     onEditReport: ((report: DailyReport) => void) | null;
+    onDeleteReport: ((reportId: string) => void) | null;
 }
 
-export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onOpenCreateReportModal, onViewReportDetails, onEditReport }) => {
+export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onOpenCreateReportModal, onViewReportDetails, onEditReport, onDeleteReport }) => {
     if (loading && (!Array.isArray(dailyReports) || dailyReports.length === 0)) return <Loading />;
 
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
@@ -67,6 +68,11 @@ export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ da
                                         {onEditReport && (
                                             <button onClick={() => onEditReport(report)} className="btn-icon table-action-button edit" title="Edit Report">
                                                 <Icons.Edit3 size={16} />
+                                            </button>
+                                        )}
+                                        {onDeleteReport && (
+                                            <button onClick={() => onDeleteReport(report.id)} className="btn-icon table-action-button delete" title="Delete Report">
+                                                <Icons.Trash2 size={16} />
                                             </button>
                                         )}
                                     </td>
