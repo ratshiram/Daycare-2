@@ -100,6 +100,17 @@ export const CreateOrEditDailyReportModal: React.FC<CreateOrEditDailyReportModal
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'photo1' | 'photo2' | 'video1' | 'video2') => {
         const file = e.target.files?.[0];
         if (file) {
+            if (fileType.includes('video')) {
+                const maxFileSize = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxFileSize) {
+                    showAlert('Video file size cannot exceed 10MB.', 'error');
+                    e.target.value = ''; // Clear the file input
+                    if (fileType === 'video1') setVideo1File(null);
+                    if (fileType === 'video2') setVideo2File(null);
+                    return;
+                }
+            }
+
             if (fileType === 'photo1') setPhoto1File(file);
             else if (fileType === 'photo2') setPhoto2File(file);
             else if (fileType === 'video1') setVideo1File(file);
