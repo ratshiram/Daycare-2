@@ -536,10 +536,14 @@ const App = () => {
         if (!window.confirm("Are you sure you want to delete this daily report? This action cannot be undone.")) return;
         try {
             const { error } = await supabase.from('daily_reports').delete().eq('id', reportId);
-            if (error) throw error;
+            if (error) {
+                console.error("Error object from Supabase:", error);
+                throw error;
+            }
             showAlert('Daily report deleted successfully!');
             fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
         } catch (e: any) {
+            console.error("Full error caught in deleteDailyReportFromSupabase:", e);
             showAlert(`Error deleting daily report: ${e.message}`, 'error');
         }
     }, [showAlert, fetchData]);
@@ -1113,3 +1117,5 @@ const App = () => {
 };
 
 export default App;
+
+    
