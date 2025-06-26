@@ -32,13 +32,17 @@ export const LessonPlansPage: React.FC<LessonPlansPageProps> = ({ onOpenCreateOr
         return currentUser?.role === 'admin' || currentUser?.staff_id === plan.staff_id;
     };
 
+    const canCreate = currentUser?.role === 'admin' || currentUser?.role === 'teacher';
+
     return (
         <div className="page-card">
             <div className="page-card-header">
                 <h2 className="page-card-title">Lesson Plans</h2>
-                <Button onClick={() => onOpenCreateOrEditModal(null)} className="btn btn-primary btn-small">
-                    <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">New Lesson Plan</span>
-                </Button>
+                {canCreate && (
+                    <Button onClick={() => onOpenCreateOrEditModal(null)} className="btn btn-primary btn-small">
+                        <Icons.PlusCircle size={18} /> <span className="hidden sm:inline">New Lesson Plan</span>
+                    </Button>
+                )}
             </div>
             {(!loadingData.lessonPlans && (!Array.isArray(lessonPlans) || lessonPlans.length === 0)) ? (
                 <InfoMessage message="No lesson plans have been created yet." icon={Icons.BookCopy} />

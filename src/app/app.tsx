@@ -225,7 +225,7 @@ const App = () => {
                     };
             
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
-                        dataPromises.staff = fetchData('staff', supabase.from('staff').select('*').order('name', { ascending: true }));
+                        dataPromises.staff = fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         if (['admin', 'teacher'].includes(role)) {
                             dataPromises.lessonPlans = fetchData('lessonPlans', supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
@@ -240,6 +240,7 @@ const App = () => {
                         // This logic is handled client-side for simplicity, but could be a DB function for performance
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        dataPromises.lessonPlans = fetchData('lessonPlans', supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
                     }
                     
                     if (role === 'admin') {
@@ -837,7 +838,7 @@ const App = () => {
     const adminNav = [ { name: 'AdminDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'Staff', label: 'Staff', icon: Icons.UsersIconAliased }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane }, { name: 'AdminParents', label: 'Parents', icon: Icons.UserCog }, { name: 'Rooms', label: 'Rooms', icon: Icons.Building }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'AdminIncidentReports', label: 'Incident Reports', icon: Icons.ShieldAlert }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'AdminBilling', label: 'Billing', icon: Icons.DollarSign }, { name: 'AdminWaitlist', label: 'Waitlist', icon: Icons.ListOrdered }, ];
     const teacherNav = [ { name: 'TeacherDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane } ];
     const assistantNav = [ { name: 'AssistantDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'AdminDailyReports', label: 'Create Report', icon: Icons.FileText }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera } ];
-    const parentNav = [ { name: 'ParentDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'ParentDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'ParentMedications', label: 'Medications', icon: Icons.Pill }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'ParentInvoices', label: 'Invoices', icon: Icons.DollarSign }, { name: 'AdminGallery', label: 'Photo Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone } ];
+    const parentNav = [ { name: 'ParentDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'ParentDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'ParentMedications', label: 'Medications', icon: Icons.Pill }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'ParentInvoices', label: 'Invoices', icon: Icons.DollarSign }, { name: 'AdminGallery', label: 'Photo Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy } ];
     let currentNavItems = []; let currentPortalName = "Daycare Portal";
     switch (appMode) { case 'admin': currentNavItems = adminNav; currentPortalName = "Admin Portal"; break; case 'teacher': currentNavItems = teacherNav; currentPortalName = "Teacher Portal"; break; case 'assistant': currentNavItems = assistantNav; currentPortalName = "Assistant Portal"; break; case 'parent': currentNavItems = parentNav; currentPortalName = "Parent Portal"; break; default: currentNavItems = []; currentPortalName = "Welcome"; }
     
@@ -916,6 +917,7 @@ const App = () => {
                     case 'AdminGallery': return <AdminGalleryPage />;
                     case 'AdminAnnouncements': return <AdminAnnouncementsPage announcements={announcements} staff={staff} loading={loadingData.announcements || false} onNavigateToCreateAnnouncement={null} onEditAnnouncement={null} onDeleteAnnouncement={null} />;
                     case 'Communications': return <CommunicationsPage />;
+                    case 'LessonPlans': return <LessonPlansPage onOpenCreateOrEditModal={() => {}} onDeleteLessonPlan={() => {}} />;
                     default: return <ParentDashboardPage currentUser={currentUser} />;
                 }
             case 'unknown':
@@ -1020,4 +1022,5 @@ export default App;
     
 
     
+
 
