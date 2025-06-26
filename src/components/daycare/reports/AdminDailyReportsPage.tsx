@@ -5,6 +5,7 @@ import { Icons } from '@/components/Icons';
 import type { DailyReport, Child, Staff } from '@/types';
 import { formatDateForInput } from '@/lib/customUtils';
 import Loading from '@/app/loading';
+import { useAppState } from '@/app/app';
 
 interface AdminDailyReportsPageProps {
     dailyReports: DailyReport[];
@@ -18,6 +19,8 @@ interface AdminDailyReportsPageProps {
 }
 
 export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ dailyReports, loading, children, staff, onOpenCreateReportModal, onViewReportDetails, onEditReport, onDeleteReport }) => {
+    const { currentUser } = useAppState();
+
     if (loading && (!Array.isArray(dailyReports) || dailyReports.length === 0)) return <Loading />;
 
     const childNameMap = Array.isArray(children) ? children.reduce((acc, child) => {
@@ -29,6 +32,21 @@ export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ da
         acc[s.id] = s.name;
         return acc;
     }, {} as Record<string, string>) : {};
+
+    const canPerformAction = (report: DailyReport, action: 'edit' | 'delete') => {
+        if (!currentUser) return false;
+        
+        const handler = action === 'edit' ? onEditReport : onDeleteReport;
+        if (!handler) return false;
+
+        if (currentUser.role === 'admin') return true;
+        
+        if (currentUser.role === 'teacher' && report.staff_id === currentUser.staff_id) {
+            return true;
+        }
+
+        return false;
+    };
 
     return (
         <div className="page-card">
@@ -65,13 +83,13 @@ export const AdminDailyReportsPage: React.FC<AdminDailyReportsPageProps> = ({ da
                                         <button onClick={() => onViewReportDetails(report)} className="btn-icon table-action-button" title="View Details">
                                             <Icons.Eye size={16} />
                                         </button>
-                                        {onEditReport && (
-                                            <button onClick={() => onEditReport(report)} className="btn-icon table-action-button edit" title="Edit Report">
+                                        {canPerformAction(report, 'edit') && (
+                                            <button onClick={() => onEditReport!(report)} className="btn-icon table-action-button edit" title="Edit Report">
                                                 <Icons.Edit3 size={16} />
                                             </button>
                                         )}
-                                        {onDeleteReport && (
-                                            <button onClick={() => onDeleteReport(report.id)} className="btn-icon table-action-button delete" title="Delete Report">
+                                        {canPerformAction(report, 'delete') && (
+                                            <button onClick={() => onDeleteReport!(report.id)} className="btn-icon table-action-button delete" title="Delete Report">
                                                 <Icons.Trash2 size={16} />
                                             </button>
                                         )}
