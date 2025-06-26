@@ -50,9 +50,10 @@ import { CommunicationsPage } from '@/components/daycare/communications/Communic
 import { LessonPlansPage } from '@/components/daycare/lesson-plans/LessonPlansPage';
 import { CreateOrEditLessonPlanModal } from '@/components/daycare/lesson-plans/CreateOrEditLessonPlanModal';
 import { useToast } from '@/hooks/use-toast';
-import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, StaffLeaveRequest, WaitlistEntry, Message, LessonPlan, AppState } from '@/types';
+import type { Announcement, Child, DailyReport, IncidentReport, Invoice, Medication, MedicationLog, Parent, Room, Staff, StaffLeaveRequest, WaitlistEntry, Message, LessonPlan, AppState, Notification } from '@/types';
 import Loading from './loading';
 import { Icons } from '@/components/Icons';
+import { NotificationsPopover } from '@/components/daycare/notifications/NotificationsPopover';
 
 type CurrentUser = User & { role: string; name: string; profileId: string | null; staff_id: string | null; };
 
@@ -108,6 +109,7 @@ const App = () => {
     const [staffLeaveRequests, setStaffLeaveRequests] = useState<StaffLeaveRequest[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
 
     const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
 
@@ -222,6 +224,7 @@ const App = () => {
                         children: fetchData('children', supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
                         medications: fetchData('medications', supabase.from('medications').select('*').order('medication_name', { ascending: true })),
                         messages: fetchData('messages', supabase.from('messages').select('*').order('created_at', { ascending: true })),
+                        notifications: fetchData('notifications', supabase.from('notifications').select('*').order('created_at', { ascending: false })),
                     };
             
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
@@ -236,8 +239,6 @@ const App = () => {
                             dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
                         }
                     } else if (role === 'parent') {
-                        // Parents might see reports and invoices for children they are primary OR secondary parent of
-                        // This logic is handled client-side for simplicity, but could be a DB function for performance
                         dataPromises.dailyReports = fetchData('dailyReports', supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         dataPromises.invoices = fetchData('invoices', supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
                         dataPromises.lessonPlans = fetchData('lessonPlans', supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
@@ -258,7 +259,7 @@ const App = () => {
                         rooms: setRooms, announcements: setAnnouncements, children: setChildren, medications: setMedications, messages: setMessages,
                         staff: setStaff, dailyReports: setDailyReports, invoices: setInvoices, incidentReports: setIncidentReports,
                         medicationLogs: setMedicationLogs, waitlistEntries: setWaitlistEntries, parentsList: setParentsList, staffLeaveRequests: setStaffLeaveRequests,
-                        lessonPlans: setLessonPlans,
+                        lessonPlans: setLessonPlans, notifications: setNotifications
                     };
 
                     keys.forEach((key, index) => {
@@ -275,7 +276,7 @@ const App = () => {
                     setIncidentReports([]); setMedications([]); setMedicationLogs([]);
                     setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
                     setParentsList([]); setMessages([]); setStaffLeaveRequests([]);
-                    setLessonPlans([]);
+                    setLessonPlans([]); setNotifications([]);
                 }
             } catch (error: any) {
                 console.error("A critical error occurred during session processing:", error);
@@ -309,6 +310,43 @@ const App = () => {
         } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); }
         finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
     }, [showAlert]);
+
+    // --- Notification Handlers ---
+    const createNotifications = useCallback(async (userIds: string[], title: string, body: string, link: string) => {
+        const validUserIds = userIds.filter(id => id);
+        if (validUserIds.length === 0) return;
+
+        const notificationsToInsert = validUserIds.map(userId => ({ user_id: userId, title, body, link }));
+
+        try {
+            const { error } = await supabase.from('notifications').insert(notificationsToInsert);
+            if (error) throw error;
+        } catch (e: any) {
+            console.error(`Failed to create notifications: ${e.message}`);
+        }
+    }, []);
+
+    const markNotificationAsRead = useCallback(async (notificationId: string) => {
+        try {
+            const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+            if (error) throw error;
+            setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n));
+        } catch (e: any) {
+            showAlert(`Error marking notification as read: ${e.message}`, 'error');
+        }
+    }, [showAlert]);
+
+    const markAllNotificationsAsRead = useCallback(async () => {
+        const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+        if (unreadIds.length === 0) return;
+        try {
+            const { error } = await supabase.from('notifications').update({ is_read: true }).in('id', unreadIds);
+            if (error) throw error;
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        } catch (e: any) {
+            showAlert(`Error marking all notifications as read: ${e.message}`, 'error');
+        }
+    }, [showAlert, notifications]);
     
     // --- ALL CRUD OPERATIONS ---
     const addChildToSupabase = useCallback(async (childFormData: Omit<Child, 'id' | 'created_at' | 'primary_parent'>) => {
@@ -465,8 +503,14 @@ const App = () => {
             showAlert('Daily report added!'); 
             setShowCreateReportModal(false);
             fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+
+            const child = children.find(c => c.id === reportData.child_id);
+            const parent = child && parentsList.find(p => p.id === child.primary_parent_id);
+            if(child && parent?.user_id) {
+                await createNotifications([parent.user_id], `New Daily Report for ${child.name}`, `A new report for ${formatDateForInput(reportData.report_date)} is available.`, 'ParentDailyReports');
+            }
         } catch (e: any) { showAlert(`Error adding daily report: ${e.message}`, 'error'); }
-    }, [showAlert, currentUser, fetchData]);
+    }, [showAlert, currentUser, fetchData, createNotifications, children, parentsList]);
     
     const handleViewReportDetails = useCallback((report: DailyReport) => { setReportToView(report); setShowViewDailyReportModal(true); }, []);
     
@@ -569,10 +613,15 @@ const App = () => {
             showAlert('Announcement created!'); 
             setShowCreateAnnouncementModal(false);
             fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
+
+            if (announcementData.is_published) {
+                const userIds = [...parentsList.map(p => p.user_id), ...staff.map(s => s.user_id)].filter((id): id is string => !!id);
+                await createNotifications(userIds, `New Announcement: ${announcementData.title}`, announcementData.content.substring(0, 50) + '...', 'AdminAnnouncements');
+            }
         } catch (e: any) { 
             showAlert(`Create announcement error: ${e.message}`, 'error'); 
         }
-    }, [showAlert, currentUser, fetchData]);
+    }, [showAlert, currentUser, fetchData, createNotifications, parentsList, staff]);
     
     const updateAnnouncementInSupabase = useCallback(async (announcementData: Announcement) => {
         if (!announcementData.id || !currentUser?.staff_id) return;
@@ -613,10 +662,17 @@ const App = () => {
             showAlert('Invoice created!'); 
             setShowCreateInvoiceModal(false);
             fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+            
+            const child = children.find(c => c.id === invoiceData.child_id);
+            const parent = child && parentsList.find(p => p.id === child.primary_parent_id);
+            if(child && parent?.user_id) {
+                await createNotifications([parent.user_id], `New Invoice for ${child.name}`, `Invoice #${invoiceData.invoice_number} for $${invoiceData.amount_due} is now available.`, 'ParentInvoices');
+            }
+
         } catch (e: any) { 
             showAlert(`Create invoice error: ${e.message}`, 'error'); 
         }
-    }, [showAlert, currentUser, fetchData]);
+    }, [showAlert, currentUser, fetchData, createNotifications, children, parentsList]);
 
     const handleViewInvoiceDetails = useCallback(async (invoice: Invoice) => {
         setInvoiceToView(invoice);
@@ -728,10 +784,29 @@ const App = () => {
             const { error } = await supabase.from('messages').insert([messageData]);
             if (error) throw error;
             fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
+
+            // Create notifications
+            const child = children.find(c => c.id === childId);
+            if (!child) return;
+
+            const title = `New message for ${child.name}`;
+            const body = `${currentUser.name}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`;
+            const link = 'Communications';
+
+            if (currentUser.role === 'parent') {
+                const staffToNotify = staff.filter(s => ['admin', 'teacher'].includes(s.role));
+                const userIds = staffToNotify.map(s => s.user_id).filter((id): id is string => !!id);
+                await createNotifications(userIds, title, body, link);
+            } else { // staff is sender
+                const parent = parentsList.find(p => p.id === child.primary_parent_id);
+                if (parent?.user_id) {
+                    await createNotifications([parent.user_id], title, body, link);
+                }
+            }
         } catch (e: any) {
             showAlert(`Error sending message: ${e.message}`, 'error');
         }
-    }, [currentUser, showAlert, fetchData]);
+    }, [currentUser, showAlert, fetchData, createNotifications, children, staff, parentsList]);
     
     const addStaffLeaveRequestToSupabase = useCallback(async (requestData: Omit<StaffLeaveRequest, 'id' | 'created_at' | 'staff_id' | 'status' | 'reviewed_by_admin_id'>) => {
         if (!currentUser?.staff_id) {
@@ -767,10 +842,16 @@ const App = () => {
             if (error) throw error;
             showAlert(`Request has been ${status}.`);
             fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
+
+            const request = staffLeaveRequests.find(r => r.id === requestId);
+            const staffMember = staff.find(s => s.id === request?.staff_id);
+            if (staffMember?.user_id) {
+                await createNotifications([staffMember.user_id], `Leave Request ${status}`, `Your leave request from ${formatDateForInput(request?.start_date)} to ${formatDateForInput(request?.end_date)} was ${status}.`, 'StaffLeaveRequests');
+            }
         } catch (e: any) {
             showAlert(`Error updating request: ${e.message}`, 'error');
         }
-    }, [showAlert, currentUser, fetchData]);
+    }, [showAlert, currentUser, fetchData, createNotifications, staffLeaveRequests, staff]);
 
     const addLessonPlanToSupabase = useCallback(async (planData: Omit<LessonPlan, 'id' | 'created_at'>) => {
         if (!currentUser?.staff_id) { showAlert("Cannot create lesson plan: Staff profile not loaded.", "error"); return; }
@@ -936,7 +1017,7 @@ const App = () => {
     return (
         <ErrorBoundary>
             <AppStateContext.Provider value={{
-                currentUser, appMode, showAlert, children, staff, rooms, dailyReports, incidentReports, medications, medicationLogs, announcements, invoices, waitlistEntries, parentsList, staffLeaveRequests, messages, lessonPlans, setCurrentPage, loadingData, addMessageToSupabase
+                currentUser, appMode, showAlert, children, staff, rooms, dailyReports, incidentReports, medications, medicationLogs, announcements, invoices, waitlistEntries, parentsList, staffLeaveRequests, messages, lessonPlans, notifications, setCurrentPage, loadingData, addMessageToSupabase, markNotificationAsRead, markAllNotificationsAsRead
             }}>
                 <div className={`app-container`}>
                     {(!session || appMode === 'auth') ? (
@@ -980,6 +1061,7 @@ const App = () => {
                                         )}
                                         <h1 className="page-title">{currentNavItems.find(item => item.name === currentPage)?.label || currentPage.replace(/([A-Z])/g, ' $1').trim() || "Daycare Management"}</h1>
                                         <div className="header-user-controls">
+                                            <NotificationsPopover />
                                             {session?.user && <div className="user-email">Logged in: <span>{currentUser?.name || session.user.email} ({currentUser?.role || 'N/A'})</span></div>}
                                         </div>
                                     </header>
@@ -1018,7 +1100,3 @@ const App = () => {
 };
 
 export default App;
-
-    
-
-    

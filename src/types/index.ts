@@ -1,5 +1,4 @@
 
-
 export interface Base {
     id: string;
     created_at: string;
@@ -24,7 +23,6 @@ export interface Child extends Base {
     age: number | null;
     current_room_id?: string | null;
     primary_parent_id?: string | null;
-    parent_2_id?: string | null;
     emergency_contact?: string | null;
     allergies?: string | null;
     notes?: string | null;
@@ -183,6 +181,14 @@ export interface LessonPlan extends Base {
     document_url?: string | null;
 }
 
+export interface Notification extends Base {
+    user_id: string;
+    title: string;
+    body?: string | null;
+    link?: string | null;
+    is_read: boolean;
+}
+
 export type AppState = {
   currentUser: any | null;
   appMode: string;
@@ -200,12 +206,11 @@ export type AppState = {
   staffLeaveRequests: StaffLeaveRequest[];
   messages: Message[];
   lessonPlans: LessonPlan[];
+  notifications: Notification[];
   setCurrentPage: (page: string) => void;
   loadingData: Record<string, boolean>;
   showAlert: (message: string, type?: 'success' | 'error' | 'warning') => void;
   addMessageToSupabase: (childId: string, content: string) => Promise<void>;
+  markNotificationAsRead: (notificationId: string) => void;
+  markAllNotificationsAsRead: () => void;
 };
-
-    
-
-    

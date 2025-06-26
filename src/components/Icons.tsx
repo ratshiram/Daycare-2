@@ -43,7 +43,8 @@ import {
     Search, 
     BookCopy,
     MessageSquare,
-    Plane
+    Plane,
+    Bell
 } from 'lucide-react';
 
 export const Icons = {
@@ -92,6 +93,5 @@ export const Icons = {
     BookCopy,
     MessageSquare,
     Plane,
+    Bell,
 };
-
-    
