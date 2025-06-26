@@ -204,31 +204,31 @@ const App = () => {
                     }
                     setCurrentPage(initialPage);
                     
-                    // Fetch all data for the determined role
                     const dataPromises: { [key: string]: Promise<any> } = {};
 
+                    // Common data for all authenticated users
                     dataPromises.rooms = fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
                     dataPromises.announcements = fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
                     dataPromises.children = fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
                     dataPromises.medications = fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
                     dataPromises.messages = fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
                     dataPromises.notifications = fetchData('notifications', setNotifications, supabase.from('notifications').select('*').eq('user_id', userDetails.id).order('created_at', { ascending: false }));
+                    dataPromises.staff = fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
+                    dataPromises.parentsList = fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
+                    dataPromises.lessonPlans = fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
             
+                    // Role-specific data
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
-                        dataPromises.staff = fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
                         dataPromises.dailyReports = fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
-                        if (['admin', 'teacher'].includes(role)) {
-                            dataPromises.lessonPlans = fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
-                        }
+
                         if (role === 'admin') {
                             dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
-                        } else if (userDetails?.staff_id) {
+                        } else if (userDetails?.staff_id) { // teacher or assistant
                             dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
                         }
                     } else if (role === 'parent') {
                         dataPromises.dailyReports = fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
                         dataPromises.invoices = fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                        dataPromises.lessonPlans = fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
                     }
                     
                     if (role === 'admin') {
@@ -236,7 +236,6 @@ const App = () => {
                         dataPromises.medicationLogs = fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
                         dataPromises.invoices = fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
                         dataPromises.waitlistEntries = fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
-                        dataPromises.parentsList = fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
                     }
             
                     await Promise.all(Object.values(dataPromises));
@@ -1090,4 +1089,6 @@ const App = () => {
 export default App;
 
     
+    
+
     
