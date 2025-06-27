@@ -684,25 +684,23 @@ const App = () => {
     const handleOpenAddWaitlistModal = useCallback(() => { setWaitlistEntryToEdit(null); setShowAddWaitlistModal(true); }, []);
     const handleEditWaitlistEntry = useCallback((entry: WaitlistEntry) => { setWaitlistEntryToEdit(entry); setShowAddWaitlistModal(true); }, []);
     
-    const addOrUpdateWaitlistEntryToSupabase = useCallback(async (entryData: WaitlistEntry, isEditing: boolean) => { 
-        try { 
-            let error; 
-            if (isEditing) { 
-                const {id, ...dataToUpdate} = entryData; 
-                ({ error } = await supabase.from('waitlist_entries').update(dataToUpdate).eq('id', id)); 
-            } else { 
-                const {id, ...dataToInsert} = entryData; 
-                ({ error } = await supabase.from('waitlist_entries').insert([dataToInsert])); 
-            } 
-            if (error) throw error; 
-            showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`); 
-            setShowAddWaitlistModal(false); 
+    const addOrUpdateWaitlistEntryToSupabase = useCallback(async (entryData: Omit<WaitlistEntry, 'id' | 'created_at'>, isEditing: boolean) => {
+        try {
+            let error;
+            if (isEditing && waitlistEntryToEdit?.id) {
+                ({ error } = await supabase.from('waitlist_entries').update(entryData).eq('id', waitlistEntryToEdit.id));
+            } else {
+                ({ error } = await supabase.from('waitlist_entries').insert([entryData]));
+            }
+            if (error) throw error;
+            showAlert(`Waitlist entry ${isEditing ? 'updated' : 'added'}!`);
+            setShowAddWaitlistModal(false);
             setWaitlistEntryToEdit(null);
             fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
-        } catch (e: any) { 
-            showAlert(`Waitlist error: ${e.message}`, 'error'); 
-        } 
-    }, [showAlert, fetchData]);
+        } catch (e: any) {
+            showAlert(`Waitlist error: ${e.message}`, 'error');
+        }
+    }, [showAlert, fetchData, waitlistEntryToEdit]);
     
     const deleteWaitlistEntryFromSupabase = useCallback(async (entryId: string) => { 
         if (!window.confirm("Remove from waitlist?")) return; 
@@ -1096,5 +1094,6 @@ export default App;
     
 
     
+
 
 
