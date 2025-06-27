@@ -294,7 +294,7 @@ const App = () => {
         };
 
         loadUserData();
-    }, [session, fetchData, showAlert]);
+    }, [session, fetchData]);
     
 
     // --- Notification Handlers ---
