@@ -1,2 +1,2 @@
 // This file is intentionally left blank.
-// The configuration has been moved to next.config.js to establish a single source of truth.
+// The single source of truth for the Next.js configuration is next.config.js at the project root.
