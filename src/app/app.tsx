@@ -5,6 +5,7 @@ import React, { useState, useEffect, createContext, useCallback, useContext } fr
 import { supabase } from '../lib/supabaseClient';
 import type { Session, User } from '@supabase/supabase-js';
 import { useIsMobile } from '@/hooks/use-mobile';
+import type { LucideProps } from 'lucide-react';
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
@@ -57,6 +58,12 @@ import { Icons } from '@/components/Icons';
 import { NotificationsPopover } from '@/components/daycare/notifications/NotificationsPopover';
 
 type CurrentUser = User & { role: string; name: string; profileId: string | null; staff_id: string | null; };
+
+type NavItem = {
+  name: string;
+  label: string;
+  icon: React.ComponentType<LucideProps>;
+};
 
 // --- Contexts ---
 const AppStateContext = createContext<AppState | null>(null);
@@ -215,8 +222,6 @@ const App = () => {
                     }
                     setCurrentPage(initialPage);
                     
-                    const dataPromises: { [key: string]: Promise<any> } = {};
-
                     // Common data for all authenticated users
                     fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
                     fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
@@ -248,8 +253,6 @@ const App = () => {
                         fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
                         fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
                     }
-            
-                    await Promise.all(Object.values(dataPromises));
 
                 } else {
                     setAppMode('auth');
@@ -281,7 +284,6 @@ const App = () => {
         });
 
         return () => { subscription?.unsubscribe(); };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     
 
@@ -905,11 +907,11 @@ const App = () => {
     };
 
     // Navigation definitions
-    const adminNav = [ { name: 'AdminDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'Staff', label: 'Staff', icon: Icons.UsersIconAliased }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane }, { name: 'AdminParents', label: 'Parents', icon: Icons.UserCog }, { name: 'Rooms', label: 'Rooms', icon: Icons.Building }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'AdminIncidentReports', label: 'Incident Reports', icon: Icons.ShieldAlert }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'AdminBilling', label: 'Billing', icon: Icons.DollarSign }, { name: 'AdminWaitlist', label: 'Waitlist', icon: Icons.ListOrdered }, ];
-    const teacherNav = [ { name: 'TeacherDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane } ];
-    const assistantNav = [ { name: 'AssistantDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'AdminDailyReports', label: 'Create Report', icon: Icons.FileText }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera } ];
-    const parentNav = [ { name: 'ParentDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'ParentDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'ParentMedications', label: 'Medications', icon: Icons.Pill }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'ParentInvoices', label: 'Invoices', icon: Icons.DollarSign }, { name: 'AdminGallery', label: 'Photo Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy } ];
-    let currentNavItems = []; let currentPortalName = "Daycare Portal";
+    const adminNav: NavItem[] = [ { name: 'AdminDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'Staff', label: 'Staff', icon: Icons.UsersIconAliased }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane }, { name: 'AdminParents', label: 'Parents', icon: Icons.UserCog }, { name: 'Rooms', label: 'Rooms', icon: Icons.Building }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'AdminIncidentReports', label: 'Incident Reports', icon: Icons.ShieldAlert }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'AdminBilling', label: 'Billing', icon: Icons.DollarSign }, { name: 'AdminWaitlist', label: 'Waitlist', icon: Icons.ListOrdered }, ];
+    const teacherNav: NavItem[] = [ { name: 'TeacherDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'Children', label: 'Children', icon: Icons.Smile }, { name: 'AdminDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'StaffLeaveRequests', label: 'Leave Requests', icon: Icons.Plane } ];
+    const assistantNav: NavItem[] = [ { name: 'AssistantDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'AdminDailyReports', label: 'Create Report', icon: Icons.FileText }, { name: 'AdminGallery', label: 'Gallery', icon: Icons.Camera } ];
+    const parentNav: NavItem[] = [ { name: 'ParentDashboard', label: 'Dashboard', icon: Icons.HomeIcon }, { name: 'ParentDailyReports', label: 'Daily Reports', icon: Icons.FileText }, { name: 'ParentMedications', label: 'Medications', icon: Icons.Pill }, { name: 'Communications', label: 'Communications', icon: Icons.MessageSquare }, { name: 'ParentInvoices', label: 'Invoices', icon: Icons.DollarSign }, { name: 'AdminGallery', label: 'Photo Gallery', icon: Icons.Camera }, { name: 'AdminAnnouncements', label: 'Announcements', icon: Icons.Megaphone }, { name: 'LessonPlans', label: 'Lesson Plans', icon: Icons.BookCopy } ];
+    let currentNavItems: NavItem[] = []; let currentPortalName = "Daycare Portal";
     switch (appMode) { case 'admin': currentNavItems = adminNav; currentPortalName = "Admin Portal"; break; case 'teacher': currentNavItems = teacherNav; currentPortalName = "Teacher Portal"; break; case 'assistant': currentNavItems = assistantNav; currentPortalName = "Assistant Portal"; break; case 'parent': currentNavItems = parentNav; currentPortalName = "Parent Portal"; break; default: currentNavItems = []; currentPortalName = "Welcome"; }
     
     const handleOpenCreateAnnouncementModal = () => { setAnnouncementToEdit(null); setShowCreateAnnouncementModal(true); };
@@ -1094,4 +1096,5 @@ export default App;
     
 
     
+
 
