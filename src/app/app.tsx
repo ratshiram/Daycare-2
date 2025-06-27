@@ -273,7 +273,7 @@ const App = () => {
     }, [showAlert]);
     
     // Generic fetchData function used by CRUD operations below
-    const fetchData = useCallback(async (dataType: string, setter: React.Dispatch<React.SetStateAction<any[]>>, query: Promise<any>) => {
+    const fetchData = useCallback(async (dataType: string, setter: React.Dispatch<React.SetStateAction<any[]>>, query: any) => {
         setLoadingData(prev => ({...prev, [dataType]: true}));
         try {
           const { data, error } = await query;
@@ -288,7 +288,7 @@ const App = () => {
         const validUserIds = userIds.filter(id => id);
         if (validUserIds.length === 0) return;
 
-        const notificationsToInsert = validUserIds.map(userId => ({ user_id: userId, title, body, link }));
+        const notificationsToInsert = userIds.map(userId => ({ user_id: userId, title, body, link }));
 
         try {
             const { error } = await supabase.from('notifications').insert(notificationsToInsert);
@@ -813,7 +813,7 @@ const App = () => {
             const query = currentUser.role === 'admin'
                 ? supabase.from('leave_requests').select('*').order('start_date', { ascending: false })
                 : supabase.from('leave_requests').select('*').eq('staff_id', currentUser.staff_id).order('start_date', { ascending: false });
-            fetchData('staffLeaveRequests', setStaffLeaveRequests, query as any);
+            fetchData('staffLeaveRequests', setStaffLeaveRequests, query);
         } catch (e: any) {
             showAlert(`Error submitting leave request: ${e.message}`, 'error');
         }
@@ -1006,7 +1006,7 @@ const App = () => {
             <AppStateContext.Provider value={{
                 currentUser, appMode, showAlert, children, staff, rooms, dailyReports, incidentReports, medications, medicationLogs, announcements, invoices, waitlistEntries, parentsList, staffLeaveRequests, messages, lessonPlans, notifications, setCurrentPage, loadingData, addMessageToSupabase, markNotificationAsRead, markAllNotificationsAsRead
             }}>
-                <div className={`app-container`}>
+                <div className="app-container">
                     {(!session || appMode === 'auth') ? (
                         <AuthPage onSignUp={handleSignUp} onSignIn={handleSignIn} loading={authActionLoading} />
                     ) : (
