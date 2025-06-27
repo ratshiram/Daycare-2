@@ -179,15 +179,30 @@ const App = () => {
     }, [showAlert]);
     
     // --- Centralized Data Loading Effect ---
+    // Effect 1: Manages the session state
     useEffect(() => {
-        const processSessionChange = async (sessionData: Session | null) => {
-            try {
-                if (sessionData?.user) {
-                    // Fetch user profile first
-                    const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', sessionData.user.id).single();
+        setAppIsLoading(true);
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // Effect 2: Fetches data based on session changes
+    useEffect(() => {
+        const loadUserData = async () => {
+            if (session?.user) {
+                setAppIsLoading(true);
+                try {
+                    const { data: staffProfile, error: staffError } = await supabase.from('staff').select('id, name, role').eq('user_id', session.user.id).single();
                     if (staffError && staffError.code !== 'PGRST116') throw new Error(`Staff profile error: ${staffError.message}`);
 
-                    const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', sessionData.user.id).single();
+                    const { data: parentProfile, error: parentError } = await supabase.from('parents').select('id, first_name, last_name').eq('user_id', session.user.id).single();
                     if (parentError && parentError.code !== 'PGRST116') throw new Error(`Parent profile error: ${parentError.message}`);
                     
                     let role = 'unknown', name = 'User', profileId = null, staff_id = null;
@@ -202,7 +217,7 @@ const App = () => {
                         profileId = parentProfile.id;
                     }
 
-                    const userDetails = { ...sessionData.user, role, name, profileId, staff_id };
+                    const userDetails = { ...session.user, role, name, profileId, staff_id };
                     setCurrentUser(userDetails as CurrentUser);
                     setAppMode(role);
 
@@ -222,69 +237,64 @@ const App = () => {
                     }
                     setCurrentPage(initialPage);
                     
-                    // Common data for all authenticated users
-                    fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
-                    fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
-                    fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
-                    fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
-                    fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
-                    fetchData('notifications', setNotifications, supabase.from('notifications').select('*').eq('user_id', userDetails.id).order('created_at', { ascending: false }));
-                    fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
-                    fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
-                    fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
+                    // Data fetching promises
+                    const dataPromises = [
+                        fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true })),
+                        fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false })),
+                        fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true })),
+                        fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true })),
+                        fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true })),
+                        fetchData('notifications', setNotifications, supabase.from('notifications').select('*').eq('user_id', userDetails.id).order('created_at', { ascending: false })),
+                        fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true })),
+                        fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true })),
+                        fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }))
+                    ];
             
                     // Role-specific data
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
-                        fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        dataPromises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
 
                         if (role === 'admin') {
-                            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
+                            dataPromises.push(fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false })));
                         } else if (userDetails?.staff_id) { // teacher or assistant
-                            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
+                            dataPromises.push(fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false })));
                         }
                     } else if (role === 'parent') {
-                        fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
-                        fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        dataPromises.push(fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false })));
+                        dataPromises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
                     }
                     
                     if (role === 'admin') {
-                        fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
-                        fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
-                        fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                        fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
+                        dataPromises.push(fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false })));
+                        dataPromises.push(fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false })));
+                        dataPromises.push(fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false })));
+                        dataPromises.push(fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true })));
                     }
+                    
+                    await Promise.all(dataPromises);
 
-                } else {
+                } catch (error: any) {
+                    console.error("A critical error occurred during session processing:", error);
+                    showAlert(`There was an error loading the application: ${error.message}`, 'error');
                     setAppMode('auth');
-                    setCurrentUser(null);
-                    setCurrentPage('');
-                    setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
-                    setIncidentReports([]); setMedications([]); setMedicationLogs([]);
-                    setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
-                    setParentsList([]); setMessages([]); setStaffLeaveRequests([]);
-                    setLessonPlans([]); setNotifications([]);
+                } finally {
+                    setAppIsLoading(false);
                 }
-            } catch (error: any) {
-                console.error("A critical error occurred during session processing:", error);
-                showAlert(`There was an error loading the application: ${error.message}`, 'error');
+            } else {
                 setAppMode('auth');
-            } finally {
+                setCurrentUser(null);
+                setCurrentPage('');
+                setChildren([]); setStaff([]); setRooms([]); setDailyReports([]);
+                setIncidentReports([]); setMedications([]); setMedicationLogs([]);
+                setAnnouncements([]); setInvoices([]); setWaitlistEntries([]);
+                setParentsList([]); setMessages([]); setStaffLeaveRequests([]);
+                setLessonPlans([]); setNotifications([]);
                 setAppIsLoading(false);
             }
         };
 
-        supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-            setSession(initialSession);
-            processSessionChange(initialSession);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sessionData) => {
-            setSession(sessionData);
-            processSessionChange(sessionData);
-        });
-
-        return () => { subscription?.unsubscribe(); };
-    }, []);
+        loadUserData();
+    }, [session, fetchData, showAlert]);
     
 
     // --- Notification Handlers ---
@@ -1089,11 +1099,3 @@ const App = () => {
 };
 
 export default App;
-
-    
-    
-
-    
-
-
-
