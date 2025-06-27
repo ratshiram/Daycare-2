@@ -1,15 +1,2 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  images: {
-    unoptimized: true,
-  },
-};
-
-export default nextConfig;
+// This file is intentionally left blank.
+// The configuration has been moved to next.config.js to establish a single source of truth.
