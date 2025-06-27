@@ -160,6 +160,17 @@ const App = () => {
         });
     }, [toast]);
     
+    // Generic fetchData function used by CRUD operations below
+    const fetchData = useCallback(async (dataType: string, setter: React.Dispatch<React.SetStateAction<any[]>>, queryBuilder: any) => {
+        setLoadingData(prev => ({...prev, [dataType]: true}));
+        try {
+          const { data, error } = await queryBuilder; // Await the query builder directly
+          if (error) throw error;
+          setter(data || []);
+        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); }
+        finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
+    }, [showAlert]);
+    
     // --- Centralized Data Loading Effect ---
     useEffect(() => {
         const processSessionChange = async (sessionData: Session | null) => {
@@ -207,35 +218,35 @@ const App = () => {
                     const dataPromises: { [key: string]: Promise<any> } = {};
 
                     // Common data for all authenticated users
-                    dataPromises.rooms = fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
-                    dataPromises.announcements = fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
-                    dataPromises.children = fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
-                    dataPromises.medications = fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
-                    dataPromises.messages = fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
-                    dataPromises.notifications = fetchData('notifications', setNotifications, supabase.from('notifications').select('*').eq('user_id', userDetails.id).order('created_at', { ascending: false }));
-                    dataPromises.staff = fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
-                    dataPromises.parentsList = fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
-                    dataPromises.lessonPlans = fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
+                    fetchData('rooms', setRooms, supabase.from('rooms').select('*').order('name', { ascending: true }));
+                    fetchData('announcements', setAnnouncements, supabase.from('announcements').select('*').order('publish_date', { ascending: false }));
+                    fetchData('children', setChildren, supabase.from('children').select('*, primary_parent:primary_parent_id(id, first_name, last_name, email), check_in_time, check_out_time, current_room_id').order('name', { ascending: true }));
+                    fetchData('medications', setMedications, supabase.from('medications').select('*').order('medication_name', { ascending: true }));
+                    fetchData('messages', setMessages, supabase.from('messages').select('*').order('created_at', { ascending: true }));
+                    fetchData('notifications', setNotifications, supabase.from('notifications').select('*').eq('user_id', userDetails.id).order('created_at', { ascending: false }));
+                    fetchData('staff', setStaff, supabase.from('staff').select('*').order('name', { ascending: true }));
+                    fetchData('parentsList', setParentsList, supabase.from('parents').select('*').order('last_name', { ascending: true }));
+                    fetchData('lessonPlans', setLessonPlans, supabase.from('lesson_plans').select('*').order('plan_date', { ascending: false }));
             
                     // Role-specific data
                     if (['admin', 'teacher', 'assistant'].includes(role)) {
-                        dataPromises.dailyReports = fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
 
                         if (role === 'admin') {
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
+                            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').order('start_date', { ascending: false }));
                         } else if (userDetails?.staff_id) { // teacher or assistant
-                            dataPromises.staffLeaveRequests = fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
+                            fetchData('staffLeaveRequests', setStaffLeaveRequests, supabase.from('leave_requests').select('*').eq('staff_id', userDetails.staff_id).order('start_date', { ascending: false }));
                         }
                     } else if (role === 'parent') {
-                        dataPromises.dailyReports = fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
-                        dataPromises.invoices = fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        fetchData('dailyReports', setDailyReports, supabase.from('daily_reports').select('*').order('report_date', { ascending: false }));
+                        fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
                     }
                     
                     if (role === 'admin') {
-                        dataPromises.incidentReports = fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
-                        dataPromises.medicationLogs = fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
-                        dataPromises.invoices = fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
-                        dataPromises.waitlistEntries = fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
+                        fetchData('incidentReports', setIncidentReports, supabase.from('incident_reports').select('*').order('incident_datetime', { ascending: false }));
+                        fetchData('medicationLogs', setMedicationLogs, supabase.from('medication_logs').select('*').order('administered_at', { ascending: false }));
+                        fetchData('invoices', setInvoices, supabase.from('invoices').select('*').order('invoice_date', { ascending: false }));
+                        fetchData('waitlistEntries', setWaitlistEntries, supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }));
                     }
             
                     await Promise.all(Object.values(dataPromises));
@@ -270,18 +281,9 @@ const App = () => {
         });
 
         return () => { subscription?.unsubscribe(); };
-    }, [showAlert]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     
-    // Generic fetchData function used by CRUD operations below
-    const fetchData = useCallback(async (dataType: string, setter: React.Dispatch<React.SetStateAction<any[]>>, query: any) => {
-        setLoadingData(prev => ({...prev, [dataType]: true}));
-        try {
-          const { data, error } = await query;
-          if (error) throw error;
-          setter(data || []);
-        } catch (e: any) { showAlert(`Error fetching ${dataType}: ${e.message}`, 'error'); }
-        finally { setLoadingData(prev => ({...prev, [dataType]: false})); }
-    }, [showAlert]);
 
     // --- Notification Handlers ---
     const createNotifications = useCallback(async (userIds: string[], title: string, body: string, link: string) => {
@@ -1092,3 +1094,4 @@ export default App;
     
 
     
+
